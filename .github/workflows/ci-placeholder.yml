@@ -1,0 +1,16 @@
+name: CI Placeholder
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  placeholder-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Run Placeholder Check
+        run: echo "CI placeholder check executed successfully."

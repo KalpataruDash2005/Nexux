@@ -1,0 +1,72 @@
+# OS Target & Temporary Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.sys
+*.tmp
+*.bak
+
+# JetBrains IDE (IntelliJ, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VS Code
+.vscode/
+.history/
+*.code-workspace
+.workspace/
+
+# Node/npm (Frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Java/Maven (Backend)
+target/
+*.class
+*.bluej
+*.pkg
+*.ctxt
+.mtj.tmp/
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+.apt_generated/
+.classpath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+.factorypath
+
+# Database & Local Infrastructure
+docker/mysql/data/
+docker/n8n/data/
+.env
+
+# General Logs & Cache
+*.log
+.eslintcache
+.stylelintcache
+.cache/
+.sass-cache/
