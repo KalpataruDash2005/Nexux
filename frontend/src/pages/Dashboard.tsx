@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -39,10 +39,10 @@ const Dashboard: React.FC = () => {
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+            <Link to="/profile" className="bg-gray-900 border border-gray-700 rounded-xl p-6 block hover:bg-gray-800 transition-colors">
               <h3 className="text-lg font-medium text-blue-400 mb-2">My Profile</h3>
               <p className="text-sm text-gray-500">Update your resume and skills</p>
-            </div>
+            </Link>
             <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
               <h3 className="text-lg font-medium text-emerald-400 mb-2">Job Board</h3>
               <p className="text-sm text-gray-500">Browse new placements and openings</p>
