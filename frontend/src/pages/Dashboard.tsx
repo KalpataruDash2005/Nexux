@@ -43,10 +43,10 @@ const Dashboard: React.FC = () => {
               <h3 className="text-lg font-medium text-blue-400 mb-2">My Profile</h3>
               <p className="text-sm text-gray-500">Update your resume and skills</p>
             </Link>
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
+            <Link to="/jobs" className="bg-gray-900 border border-gray-700 rounded-xl p-6 block hover:bg-gray-800 transition-colors">
               <h3 className="text-lg font-medium text-emerald-400 mb-2">Job Board</h3>
               <p className="text-sm text-gray-500">Browse new placements and openings</p>
-            </div>
+            </Link>
             <div className="bg-gray-900 border border-gray-700 rounded-xl p-6">
               <h3 className="text-lg font-medium text-purple-400 mb-2">Applications</h3>
               <p className="text-sm text-gray-500">Track your interview status</p>
