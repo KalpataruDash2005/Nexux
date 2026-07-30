@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import JobBoard from './pages/JobBoard';
 import Applications from './pages/Applications';
+import JobApplications from './pages/JobApplications';
 
 const App: React.FC = () => {
   return (
@@ -25,6 +26,7 @@ const App: React.FC = () => {
             <Route path="/profile" element={<Profile />} />
             <Route path="/jobs" element={<JobBoard />} />
             <Route path="/applications" element={<Applications />} />
+            <Route path="/jobs/:jobId/applications" element={<JobApplications />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

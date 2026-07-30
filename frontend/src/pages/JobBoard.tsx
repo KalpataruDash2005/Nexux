@@ -124,6 +124,14 @@ const JobBoard: React.FC = () => {
                       {applied ? 'Applied ✓' : 'Apply \u2192'}
                     </button>
                   )}
+                  {isRecruiter && (
+                    <Link 
+                      to={`/jobs/${job.id}/applications`}
+                      className="text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors"
+                    >
+                      View Applicants &rarr;
+                    </Link>
+                  )}
                 </div>
               </div>
             )})}
