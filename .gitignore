@@ -59,6 +59,9 @@ replay_pid*
 .sts4-cache/
 .factorypath
 
+# Local embedded Maven
+backend/apache-maven-*/
+
 # Database & Local Infrastructure
 docker/mysql/data/
 docker/n8n/data/
