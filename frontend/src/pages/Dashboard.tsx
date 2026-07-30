@@ -51,6 +51,12 @@ const Dashboard: React.FC = () => {
               <h3 className="text-lg font-medium text-purple-400 mb-2">Applications</h3>
               <p className="text-sm text-gray-500">Track your interview status</p>
             </Link>
+            {user?.role === 'ADMIN' && (
+              <Link to="/admin" className="bg-gray-900 border border-red-900/50 rounded-xl p-6 block hover:bg-gray-800 transition-colors shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                <h3 className="text-lg font-medium text-red-400 mb-2">Admin Panel</h3>
+                <p className="text-sm text-gray-500">Platform control center</p>
+              </Link>
+            )}
           </div>
         </div>
       </main>
