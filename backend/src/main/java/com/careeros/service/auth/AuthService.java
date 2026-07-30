@@ -4,6 +4,7 @@ import com.careeros.dto.auth.AuthRequestDto;
 import com.careeros.dto.auth.AuthResponseDto;
 import com.careeros.dto.auth.RegisterRequestDto;
 import com.careeros.entity.User;
+import com.careeros.exception.BadRequestException;
 import com.careeros.repository.UserRepository;
 import com.careeros.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,7 @@ public class AuthService {
 
     public void registerUser(RegisterRequestDto requestDto) {
         if (userRepository.existsByEmail(requestDto.getEmail())) {
-            throw new RuntimeException("Error: Email is already in use!");
+            throw new BadRequestException("Email is already in use!");
         }
 
         User user = User.builder()
