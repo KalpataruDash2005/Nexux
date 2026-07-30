@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: careeros-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$DB_USER", "-p$$DB_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: careeros-n8n
+    restart: always
+    ports:
+      - "${N8N_PORT}:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false
+    volumes:
+      - n8n-data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5678/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  mysql-data:
+    driver: local
+  n8n-data:
+    driver: local
