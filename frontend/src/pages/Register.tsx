@@ -5,7 +5,7 @@ import { register } from '../services/authService';
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('STUDENT');
+  const [role, setRole] = useState<'STUDENT' | 'RECRUITER' | 'ADMIN'>('STUDENT');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -84,7 +84,7 @@ const Register: React.FC = () => {
                 id="role"
                 className="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => setRole(e.target.value as 'STUDENT' | 'RECRUITER' | 'ADMIN')}
               >
                 <option value="STUDENT">Student</option>
                 <option value="RECRUITER">Recruiter</option>

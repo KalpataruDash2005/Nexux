@@ -33,7 +33,4 @@ app:
     secret: ${JWT_SECRET:jwt_super_secret_key_minimum_256_bits_placeholder}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
-openai:
-  api:
-    key: ${OPENAI_API_KEY:}
-    url: https://api.openai.com/v1/chat/completions
+

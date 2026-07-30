@@ -1,12 +1,12 @@
 export interface AuthRequestDto {
   email: string;
-  password?: string;
+  password: string;
 }
 
 export interface RegisterRequestDto {
   email: string;
-  password?: string;
-  role: string;
+  password: string;
+  role: 'STUDENT' | 'RECRUITER' | 'ADMIN';
 }
 
 export interface AuthResponseDto {
