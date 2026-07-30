@@ -1,28 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { getActiveJobs, createJob } from '../services/jobService';
+import { getMyApplications, applyForJob } from '../services/applicationService';
 import { JobDto } from '../types/job';
+import { ApplicationDto } from '../types/application';
 import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 
 const JobBoard: React.FC = () => {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<JobDto[]>([]);
+  const [applications, setApplications] = useState<ApplicationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newJob, setNewJob] = useState<JobDto>({ title: '', companyName: '', description: '', location: '', salary: '' });
 
   const isRecruiter = user?.role === 'RECRUITER' || user?.role === 'ADMIN';
+  const isStudent = user?.role === 'STUDENT';
 
   useEffect(() => {
-    fetchJobs();
+    fetchData();
   }, []);
 
-  const fetchJobs = async () => {
+  const fetchData = async () => {
     try {
-      const data = await getActiveJobs();
-      setJobs(data);
+      const [jobsData, appsData] = await Promise.all([
+        getActiveJobs(),
+        isStudent ? getMyApplications() : Promise.resolve([])
+      ]);
+      setJobs(jobsData);
+      setApplications(appsData);
     } catch (err) {
-      console.error('Failed to fetch jobs', err);
+      console.error('Failed to fetch data', err);
     } finally {
       setLoading(false);
     }
@@ -34,11 +42,25 @@ const JobBoard: React.FC = () => {
       await createJob(newJob);
       setShowModal(false);
       setNewJob({ title: '', companyName: '', description: '', location: '', salary: '' });
-      fetchJobs();
+      fetchData();
     } catch (err) {
       console.error('Failed to create job', err);
       alert('Failed to create job.');
     }
+  };
+
+  const handleApply = async (jobId: string) => {
+    try {
+      const newApp = await applyForJob({ jobId });
+      setApplications([...applications, newApp]);
+    } catch (err) {
+      console.error('Failed to apply', err);
+      alert('Failed to apply. You may have already applied.');
+    }
+  };
+
+  const hasApplied = (jobId: string) => {
+    return applications.some(app => app.jobId === jobId);
   };
 
   return (
@@ -71,7 +93,9 @@ const JobBoard: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {jobs.map(job => (
+            {jobs.map(job => {
+              const applied = job.id ? hasApplied(job.id) : false;
+              return (
               <div key={job.id} className="bg-gray-800 border border-gray-700 rounded-2xl p-6 hover:border-gray-500 transition-colors shadow-lg flex flex-col justify-between">
                 <div>
                   <h2 className="text-xl font-semibold mb-1 text-blue-400">{job.title}</h2>
@@ -91,12 +115,18 @@ const JobBoard: React.FC = () => {
                   <div className="text-xs text-gray-500">
                     Posted by {job.postedByEmail}
                   </div>
-                  <button className="text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
-                    Apply &rarr;
-                  </button>
+                  {isStudent && (
+                    <button 
+                      onClick={() => job.id && handleApply(job.id)}
+                      disabled={applied}
+                      className={`text-sm font-medium transition-colors ${applied ? 'text-gray-500 cursor-not-allowed' : 'text-emerald-400 hover:text-emerald-300'}`}
+                    >
+                      {applied ? 'Applied ✓' : 'Apply \u2192'}
+                    </button>
+                  )}
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </main>
@@ -182,3 +212,4 @@ const JobBoard: React.FC = () => {
 };
 
 export default JobBoard;
+

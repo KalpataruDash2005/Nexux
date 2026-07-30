@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import JobBoard from './pages/JobBoard';
+import Applications from './pages/Applications';
 
 const App: React.FC = () => {
   return (
@@ -23,6 +24,7 @@ const App: React.FC = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/jobs" element={<JobBoard />} />
+            <Route path="/applications" element={<Applications />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
