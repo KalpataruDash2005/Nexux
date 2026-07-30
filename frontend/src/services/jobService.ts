@@ -1,8 +1,9 @@
 import apiClient from './apiClient';
 import { JobDto } from '../types/job';
 
-export const getActiveJobs = async (): Promise<JobDto[]> => {
-  const response = await apiClient.get<JobDto[]>('/jobs');
+export const getActiveJobs = async (search?: string): Promise<JobDto[]> => {
+  const url = search ? `/jobs?search=${encodeURIComponent(search)}` : '/jobs';
+  const response = await apiClient.get<JobDto[]>(url);
   return response.data;
 };
 

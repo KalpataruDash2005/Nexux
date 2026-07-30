@@ -18,9 +18,15 @@ public class JobService {
     private final JobRepository jobRepository;
     private final UserRepository userRepository;
 
-    public List<JobDto> getAllActiveJobs() {
-        return jobRepository.findByStatusOrderByCreatedAtDesc("ACTIVE")
-                .stream()
+    public List<JobDto> getActiveJobs(String search) {
+        List<Job> jobs;
+        if (search != null && !search.trim().isEmpty()) {
+            jobs = jobRepository.searchActiveJobs("ACTIVE", search.trim());
+        } else {
+            jobs = jobRepository.findByStatusOrderByCreatedAtDesc("ACTIVE");
+        }
+        
+        return jobs.stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
     }

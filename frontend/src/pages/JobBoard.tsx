@@ -11,6 +11,8 @@ const JobBoard: React.FC = () => {
   const [jobs, setJobs] = useState<JobDto[]>([]);
   const [applications, setApplications] = useState<ApplicationDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newJob, setNewJob] = useState<JobDto>({ title: '', companyName: '', description: '', location: '', salary: '' });
 
@@ -18,13 +20,21 @@ const JobBoard: React.FC = () => {
   const isStudent = user?.role === 'STUDENT';
 
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  useEffect(() => {
     fetchData();
-  }, []);
+  }, [debouncedSearch]);
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [jobsData, appsData] = await Promise.all([
-        getActiveJobs(),
+        getActiveJobs(debouncedSearch),
         isStudent ? getMyApplications() : Promise.resolve([])
       ]);
       setJobs(jobsData);
@@ -85,6 +95,16 @@ const JobBoard: React.FC = () => {
       </header>
 
       <main className="max-w-6xl mx-auto px-4">
+        <div className="mb-8">
+          <input
+            type="text"
+            placeholder="Search by role, company, or location..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full max-w-2xl bg-gray-800 border border-gray-700 text-white rounded-xl px-6 py-4 focus:ring-2 focus:ring-emerald-500 outline-none shadow-lg transition-shadow"
+          />
+        </div>
+
         {loading ? (
           <div className="text-center text-gray-400 py-12">Loading jobs...</div>
         ) : jobs.length === 0 ? (
