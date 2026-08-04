@@ -12,7 +12,9 @@ import com.careeros.repository.ApplicationRepository;
 import com.careeros.repository.JobRepository;
 import com.careeros.repository.UserRepository;
 import com.careeros.repository.StudentProfileRepository;
+import com.careeros.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,21 +31,21 @@ public class ApplicationService {
 
     public ApplicationDto applyForJob(String userEmail, CreateApplicationDto dto) {
         User student = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new BadRequestException("User not found"));
 
         if (!student.getRole().equalsIgnoreCase("STUDENT")) {
-            throw new RuntimeException("Only students can apply for jobs");
+            throw new AccessDeniedException("Only students can apply for jobs");
         }
 
         Job job = jobRepository.findById(dto.getJobId())
-                .orElseThrow(() -> new RuntimeException("Job not found"));
+                .orElseThrow(() -> new BadRequestException("Job not found"));
 
         if (!job.getStatus().equalsIgnoreCase("ACTIVE")) {
-            throw new RuntimeException("Job is not active");
+            throw new BadRequestException("Job is not active");
         }
 
         if (applicationRepository.findByJobIdAndStudentId(job.getId(), student.getId()).isPresent()) {
-            throw new RuntimeException("You have already applied for this job");
+            throw new BadRequestException("You have already applied for this job");
         }
 
         Application application = Application.builder()
@@ -57,7 +59,7 @@ public class ApplicationService {
 
     public List<ApplicationDto> getMyApplications(String userEmail) {
         User student = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new BadRequestException("User not found"));
 
         return applicationRepository.findByStudentIdOrderByCreatedAtDesc(student.getId())
                 .stream()
@@ -67,13 +69,13 @@ public class ApplicationService {
 
     public List<ApplicationDetailsDto> getApplicationsForJob(String userEmail, String jobId) {
         User recruiter = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new BadRequestException("User not found"));
 
         Job job = jobRepository.findById(jobId)
-                .orElseThrow(() -> new RuntimeException("Job not found"));
+                .orElseThrow(() -> new BadRequestException("Job not found"));
 
         if (!job.getPostedBy().getId().equals(recruiter.getId()) && !recruiter.getRole().equalsIgnoreCase("ADMIN")) {
-            throw new RuntimeException("You can only view applications for your own jobs");
+            throw new AccessDeniedException("You can only view applications for your own jobs");
         }
 
         return applicationRepository.findByJobIdOrderByCreatedAtDesc(jobId)
@@ -84,15 +86,15 @@ public class ApplicationService {
 
     public ApplicationDetailsDto updateApplicationStatus(String userEmail, String applicationId, UpdateApplicationStatusDto dto) {
         User recruiter = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new BadRequestException("User not found"));
 
         Application application = applicationRepository.findById(applicationId)
-                .orElseThrow(() -> new RuntimeException("Application not found"));
+                .orElseThrow(() -> new BadRequestException("Application not found"));
 
         Job job = application.getJob();
 
         if (!job.getPostedBy().getId().equals(recruiter.getId()) && !recruiter.getRole().equalsIgnoreCase("ADMIN")) {
-            throw new RuntimeException("You can only update applications for your own jobs");
+            throw new AccessDeniedException("You can only update applications for your own jobs");
         }
 
         application.setStatus(dto.getStatus());

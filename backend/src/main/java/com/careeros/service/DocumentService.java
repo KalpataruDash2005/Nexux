@@ -1,0 +1,133 @@
+package com.careeros.service;
+
+import com.careeros.dto.document.DocumentResponseDto;
+import com.careeros.entity.Document;
+import com.careeros.entity.User;
+import com.careeros.entity.Workspace;
+import com.careeros.exception.BadRequestException;
+import com.careeros.repository.DocumentRepository;
+import com.careeros.repository.UserRepository;
+import com.careeros.repository.WorkspaceRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class DocumentService {
+
+    private final DocumentRepository documentRepository;
+    private final WorkspaceRepository workspaceRepository;
+    private final UserRepository userRepository;
+    private final ProcessingService processingService;
+
+    // Local storage path for uploaded files
+    @Value("")
+    private String uploadDir;
+
+    public DocumentResponseDto uploadDocument(String ownerEmail, String workspaceId, MultipartFile file) {
+        User owner = userRepository.findByEmail(ownerEmail)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        Workspace workspace = workspaceRepository.findByIdAndOwnerId(workspaceId, owner.getId())
+                .orElseThrow(() -> new BadRequestException("Workspace not found or access denied"));
+
+        if (file.isEmpty()) {
+            throw new BadRequestException("Cannot upload empty file");
+        }
+
+        try {
+            // Ensure directory exists
+            Path uploadPath = Paths.get(uploadDir, workspaceId);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            // Save file
+            String originalFilename = file.getOriginalFilename();
+            String extension = "unknown";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String uniqueFileName = UUID.randomUUID().toString() + extension;
+            Path filePath = uploadPath.resolve(uniqueFileName);
+            file.transferTo(filePath.toAbsolutePath().toFile());
+
+            // Save metadata
+            Document document = Document.builder()
+                    .workspace(workspace)
+                    .name(originalFilename != null ? originalFilename : "Unnamed File")
+                    .type(file.getContentType() != null ? file.getContentType() : "application/octet-stream")
+                    .sizeBytes(file.getSize())
+                    .status(Document.Status.PROCESSING)
+                    .filePath(filePath.toString())
+                    .build();
+
+            document = documentRepository.save(document);
+            
+            // Trigger background processing
+            processingService.processDocument(document.getId());
+
+            return mapToDto(document);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to store file", e);
+        }
+    }
+
+    public List<DocumentResponseDto> getDocumentsByWorkspace(String ownerEmail, String workspaceId) {
+        User owner = userRepository.findByEmail(ownerEmail)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        Workspace workspace = workspaceRepository.findByIdAndOwnerId(workspaceId, owner.getId())
+                .orElseThrow(() -> new BadRequestException("Workspace not found or access denied"));
+
+        return documentRepository.findByWorkspaceId(workspaceId).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
+    }
+
+    public void deleteDocument(String ownerEmail, String workspaceId, String documentId) {
+        User owner = userRepository.findByEmail(ownerEmail)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        Workspace workspace = workspaceRepository.findByIdAndOwnerId(workspaceId, owner.getId())
+                .orElseThrow(() -> new BadRequestException("Workspace not found or access denied"));
+
+        Document document = documentRepository.findByIdAndWorkspaceId(documentId, workspaceId)
+                .orElseThrow(() -> new BadRequestException("Document not found in this workspace"));
+
+        // Delete from local storage
+        File file = new File(document.getFilePath());
+        if (file.exists()) {
+            file.delete();
+        }
+
+        // Delete from DB
+        documentRepository.delete(document);
+    }
+
+    private DocumentResponseDto mapToDto(Document document) {
+        return DocumentResponseDto.builder()
+                .id(document.getId())
+                .workspaceId(document.getWorkspace().getId())
+                .name(document.getName())
+                .type(document.getType())
+                .sizeBytes(document.getSizeBytes())
+                .status(document.getStatus().name())
+                .createdAt(document.getCreatedAt())
+                .updatedAt(document.getUpdatedAt())
+                .build();
+    }
+}

@@ -13,7 +13,7 @@ services:
     ports:
       - "${DB_PORT}:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - careeros-mysql-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$DB_USER", "-p$$DB_PASSWORD"]
       interval: 10s
@@ -29,6 +29,15 @@ services:
       - "${N8N_PORT}:5678"
     environment:
       - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_EMBEDDING_BASE_URL=${N8N_EMBEDDING_BASE_URL:-https://api.openai.com/v1}
+      - N8N_EMBEDDING_API_KEY=${OPENAI_API_KEY}
+      - N8N_EMBEDDING_MODEL=${N8N_EMBEDDING_MODEL:-text-embedding-3-small}
+      - N8N_LLM_BASE_URL=${N8N_LLM_BASE_URL:-https://api.groq.com/openai/v1}
+      - N8N_LLM_API_KEY=${OPENAI_API_KEY}
+      - N8N_LLM_MODEL=${N8N_LLM_MODEL:-llama-3.1-8b-instant}
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - BACKEND_URL=${BACKEND_URL:-http://backend:8081}
+      - PDF_ASSISTANT_INTERNAL_KEY=${PDF_ASSISTANT_INTERNAL_KEY:-careeros-pdf-internal}
     volumes:
       - n8n-data:/home/node/.n8n
     healthcheck:
@@ -38,8 +47,22 @@ services:
       retries: 5
       start_period: 15s
 
+  qdrant:
+    image: qdrant/qdrant:v1.9.7
+    container_name: careeros-qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - careeros-qdrant-data:/qdrant/storage
+
 volumes:
-  mysql-data:
-    driver: local
+  careeros-mysql-data:
+    external: true
+    name: docker_mysql-data
   n8n-data:
     driver: local
+  careeros-qdrant-data:
+    external: true
+    name: docker_qdrant-data

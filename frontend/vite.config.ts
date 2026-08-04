@@ -7,7 +7,17 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    host: true
+    host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+      },
+      '/oauth2': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+      },
+    },
   },
   resolve: {
     alias: {

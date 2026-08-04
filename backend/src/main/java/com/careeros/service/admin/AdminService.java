@@ -7,6 +7,7 @@ import com.careeros.entity.User;
 import com.careeros.repository.JobRepository;
 import com.careeros.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -37,7 +38,7 @@ public class AdminService {
         User admin = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         if (!admin.getRole().equalsIgnoreCase("ADMIN")) {
-            throw new RuntimeException("Unauthorized: Requires ADMIN role");
+            throw new AccessDeniedException("Unauthorized: Requires ADMIN role");
         }
     }
 

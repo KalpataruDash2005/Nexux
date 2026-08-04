@@ -3,9 +3,11 @@ package com.careeros.service.job;
 import com.careeros.dto.job.JobDto;
 import com.careeros.entity.Job;
 import com.careeros.entity.User;
+import com.careeros.exception.BadRequestException;
 import com.careeros.repository.JobRepository;
 import com.careeros.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -33,10 +35,10 @@ public class JobService {
 
     public JobDto createJob(String userEmail, JobDto dto) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new BadRequestException("User not found"));
 
         if (!user.getRole().equalsIgnoreCase("RECRUITER") && !user.getRole().equalsIgnoreCase("ADMIN")) {
-            throw new RuntimeException("Only recruiters or admins can post jobs");
+            throw new AccessDeniedException("Only recruiters or admins can post jobs");
         }
 
         Job job = Job.builder()

@@ -1,4 +1,9 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:careeros_db}?useSSL=true&serverTimezone=UTC
     username: ${DB_USER}
@@ -11,3 +16,50 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: false
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:change-me.apps.googleusercontent.com}
+            client-secret: ${GOOGLE_CLIENT_SECRET:change-me-oauth-client-secret}
+            scope: email, profile
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+  qdrant:
+    host: ${QDRANT_HOST:localhost}
+    port: ${QDRANT_PORT:6334}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.groq.com/openai/v1}
+    model: ${OPENAI_MODEL:llama-3.1-8b-instant}
+  pdf-assistant:
+    n8n-enabled: ${PDF_ASSISTANT_N8N_ENABLED:true}
+    n8n-webhook-url: ${N8N_WEBHOOK_URL:http://localhost:5678}
+    n8n-api-key: ${N8N_API_KEY:}
+    internal-key: ${PDF_ASSISTANT_INTERNAL_KEY:careeros-pdf-internal}
+    storage-dir: ${PDF_ASSISTANT_STORAGE_DIR:./storage/pdf-assistant}
+    qdrant-host: ${QDRANT_HOST:localhost}
+    qdrant-port: ${QDRANT_PORT:6334}
+    qdrant-rest-port: ${QDRANT_REST_PORT:6333}
+    qdrant-collection: careeros_pdf_chunks
+    embedding-dimension: 384
+    chunk-size: 600
+    chunk-overlap: 100
+    top-k: 5
+    min-score: 0.30

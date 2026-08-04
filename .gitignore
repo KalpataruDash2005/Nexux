@@ -62,6 +62,12 @@ replay_pid*
 # Local embedded Maven
 backend/apache-maven-*/
 
+# Runtime storage & temp uploads
+backend/storage/
+backend/[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*/
+backend/patch*.py
+frontend/patch*.py
+
 # Database & Local Infrastructure
 docker/mysql/data/
 docker/n8n/data/

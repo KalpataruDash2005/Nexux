@@ -1,0 +1,84 @@
+{
+  "name": "CareerOS PDF Assistant - Delete",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pdf-delete",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5e6f7a8b-9c0d-4e1f-2a3b-4c5d6e7f8091",
+      "name": "Delete Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "6f7a8b9c-0d1e-4f2a-3b4c-5d6e7f8091a2"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json || {};\nconst documentId = String(input.documentId || '');\nconst workspaceId = String(input.workspaceId || '');\n\nfunction httpStatus(res) {\n  return res && res.statusCode !== undefined ? res.statusCode : res && res.status;\n}\n\ntry {\n  if (!documentId) {\n    return [{ json: { success: false, error: 'documentId is required' } }];\n  }\n\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.QDRANT_URL}/collections/careeros_pdf_chunks/points/delete`,\n    headers: { 'Content-Type': 'application/json' },\n    body: {\n      filter: {\n        must: [{ key: 'document_id', match: { value: documentId } }],\n      },\n    },\n  });\n  if (httpStatus(res) >= 400) {\n    return [\n      {\n        json: {\n          success: false,\n          error: `Qdrant delete returned status ${httpStatus(res)}: ${JSON.stringify(res.body || {})}`,\n        },\n      },\n    ];\n  }\n  return [{ json: { success: true } }];\n} catch (e) {\n  return [{ json: { success: false, error: e && e.message ? String(e.message) : 'Unknown error' } }];\n}\n"
+      },
+      "id": "6a7b8c9d-0e1f-4a2b-3c4d-5e6f7a8b9c0d",
+      "name": "Delete Vectors",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "7b8c9d0e-1f2a-4b3c-4d5e-6f7a8b9c0d1e",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Delete Webhook": {
+      "main": [
+        [
+          {
+            "node": "Delete Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Vectors": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "active": false,
+  "tags": []
+}

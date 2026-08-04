@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { Link, Navigate } from 'react-router-dom';
 import { getAllUsers, getAllJobsForAdmin, UserAdminDto } from '../services/adminService';
 import { JobDto } from '../types/job';

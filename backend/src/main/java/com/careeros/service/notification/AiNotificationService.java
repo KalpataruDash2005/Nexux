@@ -26,11 +26,14 @@ public class AiNotificationService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${openai.api.key:}")
+    @Value("${app.openai.api-key:}")
     private String openAiApiKey;
 
-    @Value("${openai.api.url:https://api.openai.com/v1/chat/completions}")
+    @Value("${app.openai.api-url:https://api.groq.com/openai/v1/chat/completions}")
     private String openAiApiUrl;
+
+    @Value("${app.openai.model:llama-3.3-70b-versatile}")
+    private String openAiModel;
 
     public void processAndSendNotification(NotificationRequestDto requestDto) {
         log.info("Processing AI notification for event: {}", requestDto.getEventType());
@@ -61,7 +64,7 @@ public class AiNotificationService {
             headers.setBearerAuth(openAiApiKey);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", "gpt-3.5-turbo");
+            requestBody.put("model", openAiModel);
             requestBody.put("messages", List.of(
                     Map.of("role", "system", "content", "You are an assistant that formats email notifications as JSON."),
                     Map.of("role", "user", "content", prompt)

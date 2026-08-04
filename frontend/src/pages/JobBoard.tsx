@@ -3,7 +3,7 @@ import { getActiveJobs, createJob } from '../services/jobService';
 import { getMyApplications, applyForJob } from '../services/applicationService';
 import { JobDto } from '../types/job';
 import { ApplicationDto } from '../types/application';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
 const JobBoard: React.FC = () => {

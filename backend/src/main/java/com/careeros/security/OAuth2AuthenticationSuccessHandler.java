@@ -1,0 +1,55 @@
+package com.careeros.security;
+
+import com.careeros.entity.User;
+import com.careeros.repository.UserRepository;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.util.Optional;
+import java.util.UUID;
+
+@Component
+@RequiredArgsConstructor
+public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
+
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
+    private final CustomUserDetailsService userDetailsService;
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+        String email = oAuth2User.getAttribute("email");
+        
+        if (email == null) {
+            response.sendRedirect("http://localhost:5173/auth?error=Email%20not%20found%20from%20OAuth2%20provider");
+            return;
+        }
+
+        Optional<User> userOptional = userRepository.findByEmail(email);
+        if (userOptional.isEmpty()) {
+            User newUser = User.builder()
+                    .email(email)
+                    .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString())) // Random password for OAuth2 users
+                    .role("STUDENT")
+                    .build();
+            userRepository.save(newUser);
+        }
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        String token = jwtUtil.generateToken(userDetails);
+
+        String targetUrl = "http://localhost:5173/oauth2/callback?token=" + token;
+        getRedirectStrategy().sendRedirect(request, response, targetUrl);
+    }
+}

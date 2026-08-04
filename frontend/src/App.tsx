@@ -1,40 +1,59 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-
-import HealthCheck from './pages/HealthCheck';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import TopNav from './components/TopNav';
+import WorkspaceList from './pages/WorkspaceList';
+import AcademicWorkspace from './pages/AcademicWorkspace';
+import AiPlanner from './pages/AiPlanner';
 import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import JobBoard from './pages/JobBoard';
-import Applications from './pages/Applications';
-import JobApplications from './pages/JobApplications';
-import AdminDashboard from './pages/AdminDashboard';
+import LandingPage from './pages/LandingPage';
+import Auth from './pages/Auth';
+import Onboarding from './pages/Onboarding';
+import OAuth2Callback from './pages/OAuth2Callback';
+import { AuthProvider } from './context/AuthContext';
+
+// Layout for pages that require the top navigation bar (Protected/App Routes)
+const ProtectedLayout: React.FC = () => {
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 text-gray-900">
+      <TopNav />
+      <div className="flex-1 overflow-hidden">
+        <Outlet />
+      </div>
+    </div>
+  );
+};
+
+// Layout for public pages (Landing, Auth, Onboarding) that don't need TopNav
+const PublicLayout: React.FC = () => {
+  return <Outlet />;
+};
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
+    <BrowserRouter>
+      <AuthProvider>
         <Routes>
-          <Route path="/health" element={<HealthCheck />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/jobs" element={<JobBoard />} />
-            <Route path="/applications" element={<Applications />} />
-            <Route path="/jobs/:jobId/applications" element={<JobApplications />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-          </Route>
-          
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+        {/* Public Routes */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/oauth2/callback" element={<OAuth2Callback />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+        </Route>
+
+        {/* Protected App Routes */}
+        <Route element={<ProtectedLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/workspaces" element={<WorkspaceList />} />
+          <Route path="/workspaces/:workspaceId" element={<AcademicWorkspace />} />
+            <Route path="/ai-planner" element={<AiPlanner />} />
+        </Route>
+        
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
 };
 

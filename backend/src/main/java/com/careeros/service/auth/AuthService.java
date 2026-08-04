@@ -16,6 +16,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -30,10 +32,15 @@ public class AuthService {
             throw new BadRequestException("Email is already in use!");
         }
 
+        String requestedRole = requestDto.getRole() != null ? requestDto.getRole().toUpperCase() : "STUDENT";
+        if (!Set.of("STUDENT", "RECRUITER").contains(requestedRole)) {
+            throw new BadRequestException("Role must be STUDENT or RECRUITER");
+        }
+
         User user = User.builder()
                 .email(requestDto.getEmail())
                 .passwordHash(passwordEncoder.encode(requestDto.getPassword()))
-                .role(requestDto.getRole().toUpperCase())
+                .role(requestedRole)
                 .build();
 
         userRepository.save(user);

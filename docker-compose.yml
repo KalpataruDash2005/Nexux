@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: careeros-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: careeros_db
+      MYSQL_ROOT_PASSWORD: Dash@1908
+    ports:
+      - "3307:3306"
+    volumes:
+      - careeros-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.7
+    container_name: careeros-qdrant
+    restart: always
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - careeros-qdrant-data:/qdrant/storage
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: careeros-n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false
+    volumes:
+      - n8n-data:/home/node/.n8n
+
+  backend:
+    build: 
+      context: ./backend
+    container_name: careeros-backend
+    restart: always
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - QDRANT_HOST=qdrant
+      - SPRING_PROFILES_ACTIVE=dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: careeros-frontend
+    restart: always
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+
+volumes:
+  careeros-mysql-data:
+    external: true
+    name: docker_mysql-data
+  careeros-qdrant-data:
+    external: true
+    name: docker_qdrant-data
+  n8n-data:
+    driver: local

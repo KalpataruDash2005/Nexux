@@ -1,0 +1,84 @@
+{
+  "name": "CareerOS PDF Assistant - Chat",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pdf-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      "name": "Chat Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json || {};\nconst documentId = String(input.documentId || '');\nconst question = String(input.question || '');\nconst workspaceId = String(input.workspaceId || '');\n\nfunction httpStatus(res) {\n  return res && res.statusCode !== undefined ? res.statusCode : res && res.status;\n}\n\nasync function embed(text) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.EMBEDDING_BASE_URL}/embeddings`,\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: `Bearer ${$env.EMBEDDING_API_KEY}`,\n    },\n    body: { model: $env.EMBEDDING_MODEL, input: text },\n  });\n  if (httpStatus(res) >= 400) {\n    throw new Error(`Embedding request failed (${httpStatus(res)}): ${JSON.stringify(res.body || {})}`);\n  }\n  const data = res.body && res.body.data;\n  if (!data || !data.length || !Array.isArray(data[0].embedding)) {\n    throw new Error('Embedding response did not contain a valid vector');\n  }\n  return data[0].embedding;\n}\n\nasync function search(vector) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.QDRANT_URL}/collections/careeros_pdf_chunks/points/search`,\n    headers: { 'Content-Type': 'application/json' },\n    body: {\n      vector,\n      limit: 5,\n      with_payload: true,\n      filter: {\n        must: [{ key: 'document_id', match: { value: documentId } }],\n      },\n    },\n  });\n  if (httpStatus(res) >= 400) {\n    throw new Error(`Qdrant search failed (${httpStatus(res)}): ${JSON.stringify(res.body || {})}`);\n  }\n  return res.body && Array.isArray(res.body.result) ? res.body.result : [];\n}\n\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: {\n      'Content-Type': 'application/json',\n      Authorization: `Bearer ${$env.LLM_API_KEY}`,\n    },\n    body: { model: $env.LLM_MODEL, temperature: 0, messages },\n  });\n  if (httpStatus(res) >= 400) {\n    throw new Error(`LLM request failed (${httpStatus(res)}): ${JSON.stringify(res.body || {})}`);\n  }\n  const choice = res.body && res.body.choices && res.body.choices[0];\n  if (!choice || !choice.message || typeof choice.message.content !== 'string') {\n    throw new Error('LLM response did not contain message content');\n  }\n  return choice.message.content;\n}\n\ntry {\n  if (!documentId || !question) {\n    return [{ json: { answer: 'An error occurred while processing your question.', sources: [] } }];\n  }\n\n  const vector = await embed(question);\n  const hits = await search(vector);\n\n  const sources = [];\n  if (!hits.length) {\n    return [{ json: { answer: 'The information is not available in the uploaded document.', sources: [] } }];\n  }\n\n  const context = hits\n    .map((hit) => {\n      const payload = hit.payload || {};\n      const pageNumber = typeof payload.page === 'number' ? payload.page : 0;\n      const content = payload.text != null ? String(payload.text) : '';\n      sources.push({\n        pageNumber,\n        score: typeof hit.score === 'number' ? hit.score : 0,\n        content,\n      });\n      return `[Page ${pageNumber}] ${content}`;\n    })\n    .join('\\n\\n');\n\n  const prompt =\n    'You are an AI tutor.\\n' +\n    'Use ONLY the retrieved document context below to answer.\\n' +\n    'If the answer is not found, clearly state that the information is not available in the uploaded document.\\n' +\n    'Do not hallucinate.\\n' +\n    'Provide concise, accurate explanations.\\n' +\n    'When possible include the source page number.\\n\\n' +\n    `Context:\\n${context}\\n\\n` +\n    `Question: ${question}\\n\\n` +\n    'Answer:';\n\n  const answer = (await askLlm([{ role: 'user', content: prompt }])).trim();\n  return [{ json: { answer, sources } }];\n} catch (e) {\n  return [{ json: { answer: 'An error occurred while processing your question.', sources: [] } }];\n}\n"
+      },
+      "id": "3c4d5e6f-7a8b-4c9d-0e1f-2a3b4c5d6e7f",
+      "name": "Answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "4d5e6f7a-8b9c-4d0e-1f2a-3b4c5d6e7f80",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Chat Webhook": {
+      "main": [
+        [
+          {
+            "node": "Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Answer": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "active": false,
+  "tags": []
+}
