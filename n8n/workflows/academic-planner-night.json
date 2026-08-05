@@ -1,0 +1,131 @@
+{
+  "name": "CareerOS Academic Planner - Night Schedule",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b",
+      "name": "Daily 9pm",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_URL}}/api/v1/planner/study-plan/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.PLANNER_BACKEND_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"days\": 14\n}",
+        "contentType": "json",
+        "options": {}
+      },
+      "id": "f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c",
+      "name": "Regenerate Study Plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const res = $input.first().json || {};\nconst days = (res.days || []);\nlet summary = 'Tomorrow's schedule:';\nif (days.length) {\n  const tomorrow = days[0];\n  for (const s of (tomorrow.items || []).slice(0, 6)) {\n    summary += '\\n- ' + (s.startTime || '') + ' ' + s.subject + ' (' + s.hours + 'h, ' + s.sessionType + ')';\n  }\n} else {\n  summary += ' No schedule generated yet.';\n}\nreturn [{ json: { message: summary, days: days.length } }];\n"
+      },
+      "id": "a7b8c9d0-e1f2-4a3b-4c5d-6e7f8a9b0c1d",
+      "name": "Build Schedule Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.PLANNER_NOTIFY_WEBHOOK}}",
+        "sendHeaders": false,
+        "jsonBody": "={{ JSON.stringify({ title: 'Academic Planner - Tomorrow's Schedule', message: $json.message }) }}",
+        "options": {}
+      },
+      "id": "b8c9d0e1-f2a3-4b4c-5d6e-7f8a9b0c1d2e",
+      "name": "Send Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Daily 9pm": {
+      "main": [
+        [
+          {
+            "node": "Regenerate Study Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Regenerate Study Plan": {
+      "main": [
+        [
+          {
+            "node": "Build Schedule Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Schedule Message": {
+      "main": [
+        [
+          {
+            "node": "Send Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "active": false,
+  "tags": ["planner"]
+}

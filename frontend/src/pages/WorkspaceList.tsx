@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { BookOpen, Plus, Folder, Loader2, Pencil, Trash2, Sparkles } from 'lucide-react';
+import { BookOpen, Plus, Folder, Loader2, Pencil, Trash2, Sparkles, X } from 'lucide-react';
 import { getWorkspaces, createWorkspace, deleteWorkspace, renameWorkspace, Workspace } from '../services/workspaceService';
 
 const WorkspaceList: React.FC = () => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [modal, setModal] = useState<{ mode: 'create' | 'rename'; target: Workspace | null } | null>(null);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchWorkspaces();
@@ -24,38 +28,39 @@ const WorkspaceList: React.FC = () => {
     }
   };
 
-  const handleCreate = async () => {
-    const name = window.prompt('Name your new workspace (e.g. "Organic Chemistry - Semester 1")');
-    if (name === null) return;
-    const trimmed = name.trim();
-    if (!trimmed) {
-      alert('Workspace name cannot be empty.');
-      return;
-    }
-    const description = window.prompt('Add a short description (optional):') || 'A new learning workspace';
-    try {
-      setIsCreating(true);
-      const newWs = await createWorkspace(trimmed, description.trim() || 'A new learning workspace');
-      setWorkspaces([...workspaces, newWs]);
-    } catch (error: any) {
-      alert(error?.response?.data?.message || 'Failed to create workspace');
-      console.error('Failed to create workspace', error);
-    } finally {
-      setIsCreating(false);
-    }
+  const openCreate = () => {
+    setName('');
+    setDescription('');
+    setModal({ mode: 'create', target: null });
   };
 
-  const handleRename = async (ws: Workspace) => {
-    const name = window.prompt(`Rename "${ws.name}"`, ws.name);
-    if (name === null) return;
+  const openRename = (ws: Workspace) => {
+    setName(ws.name);
+    setDescription(ws.description || '');
+    setModal({ mode: 'rename', target: ws });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
+    setSaving(true);
     try {
-      const updated = await renameWorkspace(ws.id, trimmed);
-      setWorkspaces(workspaces.map((w) => (w.id === ws.id ? updated : w)));
+      if (modal?.mode === 'create') {
+        setIsCreating(true);
+        const newWs = await createWorkspace(trimmed, description.trim() || 'A new learning workspace');
+        setWorkspaces([...workspaces, newWs]);
+      } else if (modal?.target) {
+        const updated = await renameWorkspace(modal.target.id, trimmed);
+        setWorkspaces(workspaces.map((w) => (w.id === updated.id ? updated : w)));
+      }
+      setModal(null);
     } catch (error: any) {
-      alert(error?.response?.data?.message || 'Failed to rename workspace');
-      console.error('Failed to rename workspace', error);
+      alert(error?.response?.data?.message || 'Failed to save workspace');
+      console.error('Failed to save workspace', error);
+    } finally {
+      setIsCreating(false);
+      setSaving(false);
     }
   };
 
@@ -82,7 +87,7 @@ const WorkspaceList: React.FC = () => {
               {workspaces.length} {workspaces.length === 1 ? 'workspace' : 'workspaces'}
             </p>
           </div>
-          <button onClick={handleCreate} disabled={isCreating} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2 shadow-sm transition-colors disabled:opacity-50">
+          <button onClick={openCreate} disabled={isCreating} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2 shadow-sm transition-colors disabled:opacity-50">
             {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} <span>New Workspace</span>
           </button>
         </div>
@@ -111,7 +116,7 @@ const WorkspaceList: React.FC = () => {
                 </NavLink>
                 <div className="absolute top-4 right-4 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => handleRename(ws)}
+                    onClick={() => openRename(ws)}
                     className="p-2 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
                     title="Rename workspace"
                   >
@@ -136,6 +141,64 @@ const WorkspaceList: React.FC = () => {
           </div>
         )}
       </div>
+
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => !saving && setModal(null)}>
+          <div
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-[fadeInUp_0.2s_ease-out]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">
+                {modal.mode === 'create' ? 'New Workspace' : 'Rename Workspace'}
+              </h2>
+              <button onClick={() => setModal(null)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors" title="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Title</label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Organic Chemistry - Semester 1"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition-all text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add a short description (optional)"
+                  rows={3}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition-all text-sm resize-none"
+                />
+              </div>
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModal(null)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!name.trim() || saving}
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {saving && <Loader2 size={15} className="animate-spin" />}
+                  <span>{modal.mode === 'create' ? 'Create Workspace' : 'Save'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

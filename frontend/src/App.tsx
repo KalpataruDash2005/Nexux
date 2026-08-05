@@ -4,6 +4,7 @@ import TopNav from './components/TopNav';
 import WorkspaceList from './pages/WorkspaceList';
 import AcademicWorkspace from './pages/AcademicWorkspace';
 import AiPlanner from './pages/AiPlanner';
+import Placement from './pages/Placement';
 import Dashboard from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
 import Auth from './pages/Auth';
@@ -47,6 +48,7 @@ const App: React.FC = () => {
           <Route path="/workspaces" element={<WorkspaceList />} />
           <Route path="/workspaces/:workspaceId" element={<AcademicWorkspace />} />
             <Route path="/ai-planner" element={<AiPlanner />} />
+            <Route path="/placement" element={<Placement />} />
         </Route>
         
         {/* Fallback */}

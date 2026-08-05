@@ -1,0 +1,190 @@
+{
+  "name": "CareerOS Academic Planner - Hourly Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "c9d0e1f2-a3b4-4c5d-6e7f-8a9b0c1d2e3f",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.BACKEND_URL}}/api/v1/planner/upcoming?range=TODAY",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.PLANNER_BACKEND_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d0e1f2a3-b4c5-4d6e-7f8a-9b0c1d2e3f4a",
+      "name": "Check Today's Deadlines",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const events = $input.all();\nconst today = events.map((e) => e.json);\nconst reminders = [];\nfor (const ev of today) {\n  if (ev.completed) continue;\n  if (ev.category === 'EXAM' || ev.category === 'INTERNAL_EXAM' || ev.category === 'EXTERNAL_EXAM' || ev.category === 'PRACTICAL_EXAM') {\n    reminders.push('Exam today: ' + ev.title + (ev.startTime ? ' at ' + ev.startTime : ''));\n  } else if (ev.category === 'ASSIGNMENT' || ev.category === 'SUBMISSION') {\n    reminders.push('Submission due today: ' + ev.title);\n  } else if (ev.category === 'PROJECT' || ev.category === 'HACKATHON') {\n    reminders.push('Project deadline today: ' + ev.title);\n  } else if (ev.category === 'HOLIDAY' || ev.category === 'FESTIVAL') {\n    reminders.push('Holiday today: ' + ev.title);\n  } else {\n    reminders.push('Event today: ' + ev.title);\n  }\n}\nif (!reminders.length) {\n  return [{ json: { message: null, reminders: [] } }];\n}\nreturn [{ json: { message: reminders.join('\\n'), reminders: reminders } }];\n"
+      },
+      "id": "e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b",
+      "name": "Build Reminder Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c",
+      "name": "Has Reminders?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.PLANNER_NOTIFY_WEBHOOK}}",
+        "sendHeaders": false,
+        "jsonBody": "={{ JSON.stringify({ title: 'Academic Planner Reminder', message: $json.message }) }}",
+        "options": {}
+      },
+      "id": "a3b4c5d6-e7f8-4a9b-0c1d-2e3f4a5b6c7d",
+      "name": "Send Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "b4c5d6e7-f8a9-4b0c-1d2e-3f4a5b6c7d8e",
+      "name": "Noop",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        360
+      ]
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Check Today's Deadlines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Today's Deadlines": {
+      "main": [
+        [
+          {
+            "node": "Build Reminder Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reminder Message": {
+      "main": [
+        [
+          {
+            "node": "Has Reminders?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Reminders?": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Noop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "active": false,
+  "tags": ["planner"]
+}

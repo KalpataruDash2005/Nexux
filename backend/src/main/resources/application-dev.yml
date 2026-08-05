@@ -53,6 +53,12 @@ app:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.groq.com/openai/v1}
     model: ${OPENAI_MODEL:llama-3.1-8b-instant}
+  planner:
+    vision-model: ${PLANNER_VISION_MODEL:llama-3.2-11b-vision-preview}
+    storage-dir: ${PLANNER_STORAGE_DIR:./storage/planner}
+    max-file-size: 20971520
+    default-plan-days: 14
+    min-confidence: 0.6
   pdf-assistant:
     n8n-enabled: ${PDF_ASSISTANT_N8N_ENABLED:true}
     n8n-webhook-url: ${N8N_WEBHOOK_URL:http://localhost:5678}

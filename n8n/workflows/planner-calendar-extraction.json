@@ -1,0 +1,370 @@
+{
+  "name": "CareerOS Planner - Multi-Agent Calendar Extraction",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "planner-calendar-extract",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7f000101-0001-4000-8000-000000000001",
+      "name": "Calendar Extract Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        300
+      ],
+      "webhookId": "7f000101-0001-4000-8000-0000000000f0"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json || {};\nconst ctx = { ...input };\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nif (input.text && String(input.text).trim().length >= 40) {\n  ctx.text = String(input.text).trim();\n} else if (input.base64Image) {\n  if ($env.PLANNER_OCR_URL) {\n    const res = await $http.request({\n      method: 'POST',\n      url: $env.PLANNER_OCR_URL,\n      headers: { 'Content-Type': 'application/json' },\n      body: { base64Image: input.base64Image, mimeType: input.mimeType || 'image/png' }\n    });\n    if (status(res) >= 400) { throw new Error('OCR endpoint returned status ' + status(res)); }\n    ctx.text = String((res.body && res.body.text) || '').trim();\n  } else {\n    throw new Error('No text provided and no PLANNER_OCR_URL configured. Send OCR text from the backend, or configure an OCR endpoint.');\n  }\n} else {\n  throw new Error('Calendar upload requires text (or base64Image with a configured PLANNER_OCR_URL)');\n}\nif (!ctx.text || ctx.text.trim().length < 40) { throw new Error('OCR produced too little text to parse an academic calendar'); }\nif (ctx.text.length > 12000) { ctx.text = ctx.text.slice(0, 12000); }\nctx.fileName = input.fileName || 'calendar';\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-000000000002",
+      "name": "1. Preprocess & OCR Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 2048, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Layout Detection Agent of a multi-agent academic calendar extraction system.\nYou do NOT extract events. Your ONLY job is to understand the calendar structure.\nIdentify the calendar title, academic year, semester, month boundaries, week rows, day columns (Monday to Saturday), number of rows and columns, and merged cells.\nReturn ONLY valid JSON:\n{ 'title': '...', 'year': '2026', 'semester': '...', 'months': ['June', 'July'], 'columns': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], 'weekRows': 19, 'rows': 20, 'columnsCount': 6, 'mergedCells': [] }\nNever guess dates. No markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Calendar text:\n${ctx.text}` }]);\nctx.layout = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-000000000003",
+      "name": "2. Layout Detection Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 2048, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Grid Mapping Agent.\nInput: the calendar text and the Layout Detection output.\nDetermine every calendar cell: its coordinates, month row, week row, column (weekday), and the date number shown in the cell.\nReturn ONLY valid JSON:\n{ 'cells': [ { 'x': 5, 'y': 12, 'month': 'September', 'day': 'Saturday', 'dateNumber': 5 } ] }\nNever guess dates. No markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Layout: ${JSON.stringify(ctx.layout)}\nCalendar text:\n${ctx.text}` }]);\nctx.grid = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-000000000004",
+      "name": "3. Grid Mapping Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 2048, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Month Detection Agent.\nFrom the calendar text, list every month section present and its week/date range.\nReturn ONLY valid JSON:\n{ 'months': [ { 'name': 'September', 'start': '2026-09-01', 'end': '2026-09-30', 'weeks': [1, 2, 3, 4] } ] }\nNo markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Calendar text:\n${ctx.text}` }]);\nctx.months = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-000000000005",
+      "name": "4. Month Detection Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 2048, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Date Mapping Agent.\nMerge the grid map, the month map, week numbers and day columns to compute the real calendar date for every cell.\nExample: week 18, column Monday, date number 5, month September -> 2026-09-05.\nNEVER guess a date that cannot be derived from the inputs.\nReturn ONLY valid JSON:\n{ 'cells': [ { 'x': 5, 'y': 12, 'date': '2026-09-05' } ] }\nNo markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Grid: ${JSON.stringify(ctx.grid)}\nMonths: ${JSON.stringify(ctx.months)}\nCalendar text:\n${ctx.text}` }]);\nctx.dates = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-000000000006",
+      "name": "5. Date Mapping Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 2048, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Event Detection Agent.\nAnalyze ONLY the colored cells and the dated entries in the calendar. Extract every event with its title, description, color, category and priority.\nCategories: Teaching, Exam, Practical, Submission, Holiday, Vacation, Workshop, Placement, Festival, Project, Assignment, Other.\nIgnore empty cells. Never merge different events. Never skip colored cells.\nReturn ONLY valid JSON:\n{ 'events': [ { 'title': '...', 'description': '...', 'color': 'blue', 'category': 'Exam', 'priority': 'High' } ] }\nNo markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Mapped dates: ${JSON.stringify(ctx.dates)}\nCalendar text:\n${ctx.text}` }]);\nctx.events = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-000000000007",
+      "name": "6. Event Detection Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 2048, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Important Notes Agent.\nRead ONLY the 'Important Notes' / 'Important Dates' section of the calendar.\nExtract marks locking, rescheduled exams, vacations, new semester, end semester practicals and supplementary exams. Never ignore this section.\nReturn ONLY valid JSON:\n{ 'events': [ { 'title': '...', 'date': '2026-11-28', 'category': 'Exam', 'priority': 'High' } ] }\nNo markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Calendar text:\n${ctx.text}` }]);\nctx.notesEvents = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-000000000008",
+      "name": "7. Important Notes Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 4096, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Multi-Day Event Expansion Agent.\nMerge the calendar events with the important-notes events, then expand every multi-day event into ONE record per date.\nExample: ESE Practical exists on dates 5, 6, 7, 8, 9, 10 -> six independent records, one per date (2026-09-05 ... 2026-09-10). Never merge them back into a single record.\nReturn ONLY valid JSON:\n{ 'events': [ { 'title': 'ESE Practical', 'date': '2026-09-05', 'category': 'Practical', 'priority': 'High' }, ... ] }\nNo markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Calendar events: ${JSON.stringify(ctx.events)}\nImportant notes: ${JSON.stringify(ctx.notesEvents)}\nCalendar text:\n${ctx.text}` }]);\nctx.expanded = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-000000000009",
+      "name": "8. Multi-Day Expansion Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 4096, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Validation Agent.\nValidate every event: check for missing dates, wrong month, wrong weekday, impossible dates, missing titles and duplicates.\nAn event is valid only if it has a title, a parseable date (YYYY-MM-DD), and a weekday consistent with that date.\nSet confidence as a number 0-100. Flag any event below 95 confidence with needsReview: true.\nReturn ONLY valid JSON:\n{ 'events': [ { 'title': '...', 'date': '2026-09-05', 'category': '...', 'priority': '...', 'confidence': 99, 'needsReview': false } ] }\nNo markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Expanded events: ${JSON.stringify(ctx.expanded)}\nCalendar text:\n${ctx.text}` }]);\nctx.validated = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-00000000000a",
+      "name": "9. Validation Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 4096, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the Merging Agent.\nMerge the validated events with the important-notes events into one list.\nSort ascending by date. Remove exact duplicates (same title AND same date). Never remove different events that share the same date.\nReturn ONLY valid JSON:\n{ 'events': [ { 'title': '...', 'date': '2026-09-05', 'category': '...', 'priority': '...', 'confidence': 99 } ] }\nNo markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Validated events: ${JSON.stringify(ctx.validated)}\nImportant notes: ${JSON.stringify(ctx.notesEvents)}` }]);\nctx.merged = safeParse(content) || {};\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-00000000000b",
+      "name": "10. Merging Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nasync function askLlm(messages) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.LLM_BASE_URL}/chat/completions`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${$env.LLM_API_KEY}` },\n    body: { model: $env.LLM_MODEL, temperature: 0, max_tokens: 4096, messages }\n  });\n  if (status(res) >= 400) { throw new Error(`LLM failed (${status(res)}): ${JSON.stringify(res.body || {})}`); }\n  const m = res.body && res.body.choices && res.body.choices[0] && res.body.choices[0].message;\n  return m && m.content ? String(m.content) : '';\n}\nfunction safeParse(s) {\n  if (!s) { return null; }\n  const start = s.indexOf('{');\n  const end = s.lastIndexOf('}');\n  const as = s.indexOf('[');\n  try {\n    if (as >= 0 && (start < 0 || as < start)) { return JSON.parse(s.slice(as, s.lastIndexOf(']') + 1)); }\n    if (start < 0) { return null; }\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) { return null; }\n}\nconst sys = `You are the JSON Formatter Agent.\nTransform the merged events into the final machine-readable schema with day, month, year, source and confidence fields.\nReturn ONLY valid JSON (an array):\n[ { 'id': '', 'title': '...', 'description': '...', 'category': '...', 'priority': '...', 'date': '2026-09-05', 'day': '5', 'month': 'September', 'year': '2026', 'source': 'Calendar', 'confidence': 99 } ]\nNo markdown, no prose.`;\nconst content = await askLlm([{ role: 'system', content: sys }, { role: 'user', content: `Merged events: ${JSON.stringify(ctx.merged)}` }]);\nconst parsed = safeParse(content);\nctx.finalEvents = Array.isArray(parsed) ? parsed : (parsed && parsed.events) || [];\nreturn [{ json: ctx }];"
+      },
+      "id": "7f000101-0001-4000-8000-00000000000c",
+      "name": "11. JSON Formatter Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const ctx = $input.first().json || {};\nfunction status(res) { return res && res.statusCode !== undefined ? res.statusCode : res && res.status; }\nconst out = { ...ctx };\nout.result = { events: ctx.finalEvents || [], fileName: ctx.fileName };\nif (ctx.token && ctx.regenerateStudyPlan) {\n  const res = await $http.request({\n    method: 'POST',\n    url: `${$env.PLANNER_BACKEND_URL}/api/v1/planner/study-plan/generate`,\n    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ctx.token}` },\n    body: {}\n  });\n  out.result.studyPlanStatus = status(res);\n  out.result.studyPlan = res.body;\n}\nreturn [{ json: out }];"
+      },
+      "id": "7f000101-0001-4000-8000-00000000000d",
+      "name": "12. Save & Study Planner Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
+      },
+      "id": "7f000101-0001-4000-8000-00000000000e",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2280,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Calendar Extract Webhook": {
+      "main": [
+        [
+          {
+            "node": "1. Preprocess & OCR Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Preprocess & OCR Agent": {
+      "main": [
+        [
+          {
+            "node": "2. Layout Detection Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Layout Detection Agent": {
+      "main": [
+        [
+          {
+            "node": "3. Grid Mapping Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Grid Mapping Agent": {
+      "main": [
+        [
+          {
+            "node": "4. Month Detection Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Month Detection Agent": {
+      "main": [
+        [
+          {
+            "node": "5. Date Mapping Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Date Mapping Agent": {
+      "main": [
+        [
+          {
+            "node": "6. Event Detection Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Event Detection Agent": {
+      "main": [
+        [
+          {
+            "node": "7. Important Notes Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Important Notes Agent": {
+      "main": [
+        [
+          {
+            "node": "8. Multi-Day Expansion Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Multi-Day Expansion Agent": {
+      "main": [
+        [
+          {
+            "node": "9. Validation Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Validation Agent": {
+      "main": [
+        [
+          {
+            "node": "10. Merging Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Merging Agent": {
+      "main": [
+        [
+          {
+            "node": "11. JSON Formatter Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. JSON Formatter Agent": {
+      "main": [
+        [
+          {
+            "node": "12. Save & Study Planner Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12. Save & Study Planner Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "active": false,
+  "tags": []
+}

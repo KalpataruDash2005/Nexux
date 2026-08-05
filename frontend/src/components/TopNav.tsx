@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, Briefcase, Search, Bell, Command, Sparkles, Folder } from 'lucide-react';
+import { Home, BookOpen, Briefcase, Search, Bell, Command, Sparkles, Folder, LogOut } from 'lucide-react';
 import { getMyProfile } from '../services/profileService';
 import { StudentProfileDto } from '../types/profile';
 import { getWorkspaces, Workspace } from '../services/workspaceService';
@@ -13,7 +13,7 @@ const TopNav: React.FC = () => {
   const [focused, setFocused] = useState(false);
   const searchBoxRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     getMyProfile().then(setProfile).catch(console.error);
@@ -74,11 +74,15 @@ const TopNav: React.FC = () => {
     <nav className="h-16 border-b bg-white flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center space-x-8">
         {/* Logo */}
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">C</span>
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 relative flex items-center justify-center shrink-0">
+            <div className="absolute inset-0 border-t-2 border-l-2 border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></div>
+            <div className="absolute inset-0 border-b-2 border-r-2 border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></div>
+            <span className="font-black text-xs text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[-1px]">
+              N
+            </span>
           </div>
-          <span className="font-bold text-xl">CareerOS</span>
+          <span className="font-extrabold text-xl tracking-wide text-slate-850">Nexora</span>
         </div>
 
         {/* Links */}
@@ -95,10 +99,10 @@ const TopNav: React.FC = () => {
             <Sparkles size={18} />
             <span>AI Planner</span>
           </NavLink>
-          <button onClick={() => alert('Placement Module Coming Soon!')} className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50">
+          <NavLink to="/placement" className={({ isActive }) => "flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors " + (isActive ? "text-purple-700 bg-purple-50" : "text-gray-600 hover:bg-gray-50")}>
             <Briefcase size={18} />
             <span>Placement</span>
-          </button>
+          </NavLink>
         </div>
       </div>
 
@@ -164,7 +168,7 @@ const TopNav: React.FC = () => {
         </button>
 
         {/* Profile */}
-        <div className="flex items-center space-x-3 border-l pl-4">
+        <div className="flex items-center space-x-3 border-l pl-4 pr-2">
           <div className="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center text-purple-700 font-bold">
             {getInitials()}
           </div>
@@ -173,6 +177,19 @@ const TopNav: React.FC = () => {
             <span className="text-xs text-gray-500 truncate max-w-[160px]">{subtitle() || 'Academic'}</span>
           </div>
         </div>
+
+        {/* Logout */}
+        <button
+          onClick={() => {
+            logout();
+            navigate('/auth');
+          }}
+          className="flex items-center space-x-2 px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors font-medium text-sm border border-transparent hover:border-red-100 shrink-0"
+          title="Logout"
+        >
+          <LogOut size={18} />
+          <span>Logout</span>
+        </button>
       </div>
     </nav>
   );

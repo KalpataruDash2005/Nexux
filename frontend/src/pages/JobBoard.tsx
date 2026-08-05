@@ -5,6 +5,7 @@ import { JobDto } from '../types/job';
 import { ApplicationDto } from '../types/application';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
+import { MapPin, Wallet, CheckCircle2 } from 'lucide-react';
 
 const JobBoard: React.FC = () => {
   const { user } = useAuth();
@@ -122,8 +123,16 @@ const JobBoard: React.FC = () => {
                   <div className="text-sm font-medium text-gray-300 mb-4">{job.companyName}</div>
                   
                   <div className="flex flex-wrap gap-2 mb-4 text-xs font-medium text-gray-400">
-                    {job.location && <span className="bg-gray-900 px-2 py-1 rounded border border-gray-700">📍 {job.location}</span>}
-                    {job.salary && <span className="bg-gray-900 px-2 py-1 rounded border border-gray-700">💰 {job.salary}</span>}
+                    {job.location && (
+                      <span className="bg-gray-900 px-2 py-1 rounded border border-gray-700 flex items-center gap-1">
+                        <MapPin size={13} /> {job.location}
+                      </span>
+                    )}
+                    {job.salary && (
+                      <span className="bg-gray-900 px-2 py-1 rounded border border-gray-700 flex items-center gap-1">
+                        <Wallet size={13} /> {job.salary}
+                      </span>
+                    )}
                   </div>
                   
                   <p className="text-sm text-gray-400 line-clamp-3 mb-6">
@@ -141,7 +150,15 @@ const JobBoard: React.FC = () => {
                       disabled={applied}
                       className={`text-sm font-medium transition-colors ${applied ? 'text-gray-500 cursor-not-allowed' : 'text-emerald-400 hover:text-emerald-300'}`}
                     >
-                      {applied ? 'Applied ✓' : 'Apply \u2192'}
+                      {applied ? (
+                        <span className="inline-flex items-center gap-1 text-gray-500 cursor-not-allowed">
+                          <CheckCircle2 size={14} /> Applied
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300">
+                          Apply <span aria-hidden="true">&rarr;</span>
+                        </span>
+                      )}
                     </button>
                   )}
                   {isRecruiter && (

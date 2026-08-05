@@ -23,9 +23,15 @@ const Onboarding: React.FC = () => {
             <div className="w-full max-w-lg p-8 relative z-10">
                 <div className="mb-10">
                     <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center gap-2 font-bold text-lg tracking-wide">
-                            <span className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 shadow-[0_0_12px_rgba(62,123,255,0.8)]"></span>
-                            CareerOS
+                        <div className="flex items-center gap-3 font-bold text-xl tracking-wide">
+                            <div className="w-7 h-7 relative flex items-center justify-center shrink-0">
+                                <div className="absolute inset-0 border-t-2 border-l-2 border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></div>
+                                <div className="absolute inset-0 border-b-2 border-r-2 border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></div>
+                                <span className="font-black text-[10px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[-1px]">
+                                    N
+                                </span>
+                            </div>
+                            Nexora
                         </div>
                         <div className="flex gap-2">
                             <div className={`w-12 h-1.5 rounded-full transition-colors ${step >= 1 ? 'bg-[#3E7BFF]' : 'bg-[rgba(255,255,255,0.1)]'}`}></div>
@@ -107,7 +113,7 @@ const Onboarding: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="bg-[rgba(62,123,255,0.05)] border border-[rgba(62,123,255,0.2)] rounded-lg p-4 text-xs text-[#6E9CFF] leading-relaxed">
-                                    CareerOS will automatically match these skills against incoming placement drives and suggest resume enhancements.
+                                    Nexora will automatically match these skills against incoming placement drives and suggest resume enhancements.
                                 </div>
                             </div>
                         )}
@@ -120,7 +126,7 @@ const Onboarding: React.FC = () => {
                             ) : <div></div>}
                             
                             <button type="submit" className="bg-gradient-to-b from-[#4E88FF] to-[#2E62E0] hover:shadow-[0_12px_30px_-6px_rgba(62,123,255,0.6)] transition-all text-white font-medium rounded-xl px-6 py-3 flex items-center gap-2 ml-auto">
-                                {step === 3 ? 'Enter CareerOS' : 'Continue'} <ArrowRight className="w-4 h-4" />
+                                {step === 3 ? 'Enter Nexora' : 'Continue'} <ArrowRight className="w-4 h-4" />
                             </button>
                         </div>
                     </form>

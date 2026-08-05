@@ -4,17 +4,36 @@ import { getMyProfile } from '../services/profileService';
 import { StudentProfileDto } from '../types/profile';
 import { getWorkspaces, Workspace } from '../services/workspaceService';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Clock, BookOpen, FolderOpen, Sparkles, TrendingUp, Award, Zap, ArrowRight } from 'lucide-react';
+import { BookOpen, FolderOpen, Sparkles, TrendingUp, Award, Zap, ArrowRight } from 'lucide-react';
+import {
+  getTodayFocus, getStats, getEvents,
+  TodayFocusResponse, PlannerStats, PlannerEvent,
+} from '../services/plannerService';
+import TodayFocusCard from '../components/planner/TodayFocusCard';
+import MiniCalendarCard from '../components/planner/MiniCalendarCard';
+import StudyProgressCard from '../components/planner/StudyProgressCard';
 
 const Dashboard: React.FC = () => {
   const [profile, setProfile] = useState<StudentProfileDto | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [today, setToday] = useState<TodayFocusResponse | null>(null);
+  const [stats, setStats] = useState<PlannerStats | null>(null);
+  const [plannerEvents, setPlannerEvents] = useState<PlannerEvent[]>([]);
+  const [plannerLoading, setPlannerLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
     getMyProfile().then(setProfile).catch(console.error);
     getWorkspaces().then(setWorkspaces).catch(console.error);
+    Promise.all([getTodayFocus(), getStats(), getEvents()])
+      .then(([t, s, e]) => {
+        setToday(t);
+        setStats(s);
+        setPlannerEvents(e);
+      })
+      .catch(console.error)
+      .finally(() => setPlannerLoading(false));
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -116,75 +135,65 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Recent Workspaces */}
-            <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center space-x-2">
-                  <TrendingUp size={18} className="text-purple-600" />
-                  <span>Recent Workspaces</span>
-                </h2>
-                <NavLink to="/workspaces" className="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center space-x-1">
-                  <span>View all</span>
-                  <ArrowRight size={15} />
-                </NavLink>
-              </div>
-
-              {recentWorkspaces.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-500 space-y-3">
-                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center">
-                    <FolderOpen size={24} className="text-gray-400" />
-                  </div>
-                  <p className="text-sm">No workspaces yet.</p>
-                  <NavLink to="/workspaces" className="text-sm font-semibold text-purple-600 hover:text-purple-700">
-                    Create your first workspace
+            {/* Recent Workspaces + Today's Focus */}
+            <div className="lg:col-span-2 space-y-8">
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-bold text-gray-900 flex items-center space-x-2">
+                    <TrendingUp size={18} className="text-purple-600" />
+                    <span>Recent Workspaces</span>
+                  </h2>
+                  <NavLink to="/workspaces" className="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center space-x-1">
+                    <span>View all</span>
+                    <ArrowRight size={15} />
                   </NavLink>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentWorkspaces.map((ws) => (
-                    <NavLink
-                      key={ws.id}
-                      to={`/workspaces/${ws.id}`}
-                      className="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:border-purple-200 hover:shadow-sm transition-all group"
-                    >
-                      <div className="flex items-center space-x-3 min-w-0">
-                        <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 shrink-0">
-                          <BookOpen size={18} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{ws.name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5 truncate">
-                            {ws.description || 'No description'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-xs text-gray-400 shrink-0">
-                        {new Date(ws.createdAt || Date.now()).toLocaleDateString()}
-                      </div>
+
+                {recentWorkspaces.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-gray-500 space-y-3">
+                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center">
+                      <FolderOpen size={24} className="text-gray-400" />
+                    </div>
+                    <p className="text-sm">No workspaces yet.</p>
+                    <NavLink to="/workspaces" className="text-sm font-semibold text-purple-600 hover:text-purple-700">
+                      Create your first workspace
                     </NavLink>
-                  ))}
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {recentWorkspaces.map((ws) => (
+                      <NavLink
+                        key={ws.id}
+                        to={`/workspaces/${ws.id}`}
+                        className="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:border-purple-200 hover:shadow-sm transition-all group"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600 shrink-0">
+                            <BookOpen size={18} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-gray-900 truncate">{ws.name}</p>
+                            <p className="text-xs text-gray-400 mt-0.5 truncate">
+                              {ws.description || 'No description'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-xs text-gray-400 shrink-0">
+                          {new Date(ws.createdAt || Date.now()).toLocaleDateString()}
+                        </div>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <TodayFocusCard data={today} loading={plannerLoading} />
             </div>
 
-            {/* Upcoming Schedule */}
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center space-x-2">
-                  <Calendar size={18} className="text-purple-600" />
-                  <span>Schedule</span>
-                </h2>
-              </div>
-              <div className="space-y-4">
-                <div className="p-4 border border-gray-100 rounded-2xl bg-gray-50">
-                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">Today</p>
-                  <p className="text-sm font-medium text-gray-900">No upcoming events</p>
-                </div>
-                <div className="p-4 border border-gray-100 rounded-2xl flex items-center space-x-2 text-xs text-gray-400">
-                  <Clock size={14} />
-                  <span>Your study schedule will appear here.</span>
-                </div>
-              </div>
+            {/* Mini Calendar + Study Progress */}
+            <div className="space-y-8">
+              <MiniCalendarCard events={plannerEvents} loading={plannerLoading} />
+              <StudyProgressCard progress={stats?.studyProgress ?? []} loading={plannerLoading} />
             </div>
           </div>
         </div>

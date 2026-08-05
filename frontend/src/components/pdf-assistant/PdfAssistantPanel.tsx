@@ -12,6 +12,9 @@ import {
   XCircle,
   Clock,
   RefreshCw,
+  Folder,
+  Pencil,
+  X,
 } from 'lucide-react';
 import {
   listPdfDocuments,
@@ -26,6 +29,7 @@ import {
 } from '../../services/pdfAssistantService';
 import Markdown from './Markdown';
 import { useToast } from './Toast';
+import { getWorkspaceById, renameWorkspace, Workspace } from '../../services/workspaceService';
 
 interface PdfAssistantPanelProps {
   workspaceId: string;
@@ -66,10 +70,44 @@ const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) =>
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [historyLoadedFor, setHistoryLoadedFor] = useState<string | null>(null);
-  const [showSummary, setShowSummary] = useState(true);
+
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameName, setRenameName] = useState('');
+  const [savingWorkspace, setSavingWorkspace] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    getWorkspaceById(workspaceId)
+      .then(setWorkspace)
+      .catch(() => setWorkspace(null));
+  }, [workspaceId]);
+
+  const openRename = () => {
+    if (!workspace) return;
+    setRenameName(workspace.name);
+    setRenameOpen(true);
+  };
+
+  const submitRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace) return;
+    const trimmed = renameName.trim();
+    if (!trimmed) return;
+    setSavingWorkspace(true);
+    try {
+      const updated = await renameWorkspace(workspace.id, trimmed);
+      setWorkspace(updated);
+      setRenameOpen(false);
+      toast(`Renamed to "${updated.name}".`, 'success');
+    } catch (err: any) {
+      toast(err?.response?.data?.message || 'Failed to rename workspace.', 'error');
+    } finally {
+      setSavingWorkspace(false);
+    }
+  };
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -300,35 +338,28 @@ const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) =>
 
     return (
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-            <button
-              onClick={() => setShowSummary((v) => !v)}
-              className="w-full flex items-center justify-between px-5 py-4"
-            >
-              <span className="font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles size={17} className="text-purple-600" />
-                AI Summary
-              </span>
-              <span className="text-xs text-gray-400">{showSummary ? 'Hide' : 'Show'}</span>
-            </button>
-            {showSummary && (
-              <div className="px-5 pb-5 pt-1 border-t border-gray-100">
-                {selected.summary ? (
-                  <Markdown content={selected.summary} />
-                ) : (
-                  <p className="text-sm text-gray-400">No summary available.</p>
-                )}
-                <p className="text-[11px] text-gray-400 mt-3">
-                  {selected.chunkCount != null ? `${selected.chunkCount} chunks indexed` : ''}
-                  {selected.processingSource ? ` · processed via ${selected.processingSource}` : ''}
-                </p>
-              </div>
-            )}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col min-h-[280px]">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2 shrink-0">
+              <Sparkles size={16} className="text-purple-600" />
+              <h3 className="font-bold text-gray-900">AI Summary</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 max-h-[420px]">
+              {selected.summary ? (
+                <Markdown content={selected.summary} />
+              ) : (
+                <p className="text-sm text-gray-400">No summary available.</p>
+              )}
+              <p className="text-[11px] text-gray-400 mt-3">
+                {selected.chunkCount != null ? `${selected.chunkCount} chunks indexed` : ''}
+                {selected.processingSource ? ` · processed via ${selected.processingSource}` : ''}
+              </p>
+            </div>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col min-h-[280px]">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2 shrink-0">
               <MessageSquare size={16} className="text-purple-600" />
               <h3 className="font-bold text-gray-900">Ask about this document</h3>
             </div>
@@ -398,6 +429,7 @@ const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) =>
               </div>
             </div>
           </div>
+          </div>
         </div>
       </div>
     );
@@ -408,14 +440,24 @@ const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) =>
       {renderDocumentList()}
       <section className="flex-1 flex flex-col min-w-0 bg-white">
         <header className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Sparkles size={19} className="text-purple-600" />
-              PDF Assistant
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Upload a PDF and get an AI summary plus per-document Q&A.
-            </p>
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Folder size={20} className="text-purple-600 shrink-0" />
+              <h1 className="text-lg font-bold text-gray-900 truncate" title={workspace?.name}>
+                {workspace?.name || 'Workspace'}
+              </h1>
+              <button
+                onClick={openRename}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                title="Rename workspace"
+              >
+                <Pencil size={15} />
+              </button>
+            </div>
+            <div className="hidden sm:block border-l border-gray-200 h-6"></div>
+            <div className="hidden sm:block">
+              <span className="text-xs text-gray-500 font-medium">PDF Assistant</span>
+            </div>
           </div>
           {selected?.status === 'READY' && (
             <span className="text-[11px] text-gray-400 flex items-center gap-1">
@@ -426,6 +468,51 @@ const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) =>
         </header>
         {renderDetail()}
       </section>
+
+      {renameOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => !savingWorkspace && setRenameOpen(false)}>
+          <div
+            className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-[fadeInUp_0.2s_ease-out]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">Rename Workspace</h2>
+              <button onClick={() => setRenameOpen(false)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors" title="Close">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={submitRename} className="p-6 space-y-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Title</label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={renameName}
+                  onChange={(e) => setRenameName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-purple-400 focus:ring-2 focus:ring-purple-100 outline-none transition-all text-sm"
+                />
+              </div>
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRenameOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!renameName.trim() || savingWorkspace}
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold shadow-sm transition-colors disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {savingWorkspace && <Loader2 size={15} className="animate-spin" />}
+                  <span>Save</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -200,7 +200,7 @@ const LandingPage: React.FC = () => {
             <div className="content">
                 <nav id="navbar">
                 <div className="wrap nav-inner">
-                    <div className="logo"><span className="logo-mark"><span className="ring"></span><span className="core"></span></span>CareerOS</div>
+                    <div className="logo"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</div>
                     <div className="nav-links">
                     <a href="#features">Product</a>
                     <a href="#agents">Agents</a>
@@ -210,7 +210,7 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div className="nav-cta-group">
                     <Link to="/auth" className="nav-signin">Sign in</Link>
-                    <Link to="/auth" className="btn btn-primary btn-sm">Launch CareerOS</Link>
+                    <Link to="/auth" className="btn btn-primary btn-sm">Launch Nexora</Link>
                     </div>
                 </div>
                 </nav>
@@ -229,14 +229,14 @@ const LandingPage: React.FC = () => {
                     </div>
                     </div>
                     <h1>Your AI Operating System for<br/>Academic &amp; Placement Success</h1>
-                    <p className="sub">CareerOS runs quietly behind every decision you make in college � tracking coursework, building your resume, training you for interviews, and clearing a straight path to placement.</p>
+                    <p className="sub">Nexora runs quietly behind every decision you make in college  tracking coursework, building your resume, training you for interviews, and clearing a straight path to placement.</p>
                     <div className="hero-ctas">
-                    <Link to="/auth" className="btn btn-primary">Enter CareerOS</Link>
+                    <Link to="/auth" className="btn btn-primary">Enter Nexora</Link>
                     <a href="#agents" className="btn btn-ghost">Watch it think</a>
                     </div>
                     
                     <div className="dashboard-preview mt-16 mb-16 relative w-full max-w-5xl mx-auto rounded-xl overflow-hidden border border-[rgba(255,255,255,0.1)] shadow-[0_0_50px_rgba(62,123,255,0.3)] animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                        <img src="/demo-dashboard.jpg" alt="CareerOS Demo Dashboard" className="w-full h-auto block" />
+                        <img src="/demo-dashboard.jpg" alt="Nexora Demo Dashboard" className="w-full h-auto block" />
                     </div>
 
                     <div className="stat-strip">
@@ -256,7 +256,7 @@ const LandingPage: React.FC = () => {
                     <div className="section-head reveal">
                     <span className="eyebrow" style={{justifyContent:'center'}}>System Modules</span>
                     <h2>Six systems. One operating layer.</h2>
-                    <p>Every part of student life CareerOS touches, engineered as a distinct intelligence that reports back to one core.</p>
+                    <p>Every part of student life Nexora touches, engineered as a distinct intelligence that reports back to one core.</p>
                     </div>
                     <div className="feature-grid reveal-stagger">
                     <div className="glass-card tilt-target">
@@ -293,13 +293,12 @@ const LandingPage: React.FC = () => {
                 </div>
                 </section>
 
-                {/* Agents, Dashboard, Testimonials, Roadmap, Pricing, FAQ, Footer are kept mostly the same with class to className fixes */}
                 <section id="agents">
                 <div className="wrap">
                     <div className="section-head reveal">
                     <span className="eyebrow" style={{justifyContent:'center'}}>The Agent Layer</span>
                     <h2>Five agents, always awake</h2>
-                    <p>Each agent owns one part of your outcome and hands off context to the others � no dashboard-checking required.</p>
+                    <p>Each agent owns one part of your outcome and hands off context to the others  no dashboard-checking required.</p>
                     </div>
                     <div className="agent-row reveal-stagger">
                     <div className="agent-card">
@@ -330,7 +329,7 @@ const LandingPage: React.FC = () => {
                         <div className="agent-status"><span className="dot-pulse"></span>Active</div>
                         <div className="agent-name">Sage</div>
                         <div className="agent-role">Mentor Agent</div>
-                        <p>Holds the long view � career direction, skill gaps, what to learn next.</p>
+                        <p>Holds the long view  career direction, skill gaps, what to learn next.</p>
                     </div>
                     </div>
                 </div>
@@ -341,7 +340,7 @@ const LandingPage: React.FC = () => {
                 <div className="wrap">
                     <div className="section-head reveal">
                     <span className="eyebrow" style={{justifyContent:'center'}}>Feedback</span>
-                    <h2>Help us improve CareerOS.</h2>
+                    <h2>Help us improve Nexora.</h2>
                     </div>
                     <div className="reveal flex justify-center mt-12">
                         <div className="glass-card w-full max-w-xl p-8 mx-auto">
@@ -373,8 +372,8 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div className="faq-list reveal">
                     <div className="faq-item">
-                        <button className="faq-q">Does CareerOS replace my college's placement cell?<span className="plus"></span></button>
-                        <div className="faq-a"><p>No. It sits alongside it � Scout pulls in drives your cell posts and ranks them against your profile, so nothing your cell shares gets missed.</p></div>
+                        <button className="faq-q">Does Nexora replace my college's placement cell?<span className="plus"></span></button>
+                        <div className="faq-a"><p>No. It sits alongside it  Scout pulls in drives your cell posts and ranks them against your profile, so nothing your cell shares gets missed.</p></div>
                     </div>
                     <div className="faq-item">
                         <button className="faq-q">How does Forge actually improve my resume?<span className="plus"></span></button>
@@ -382,7 +381,7 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div className="faq-item">
                         <button className="faq-q">Is my academic data private?<span className="plus"></span></button>
-                        <div className="faq-a"><p>Yes. Your academic and placement data stays scoped to your account and your campus's console � it's never used to train models outside your instance.</p></div>
+                        <div className="faq-a"><p>Yes. Your academic and placement data stays scoped to your account and your campus's console  it's never used to train models outside your instance.</p></div>
                     </div>
                     </div>
                 </div>
@@ -392,7 +391,7 @@ const LandingPage: React.FC = () => {
                 <div className="wrap">
                     <div className="footer-top">
                     <div className="footer-brand">
-                        <div className="logo"><span className="logo-mark"><span className="ring"></span><span className="core"></span></span>CareerOS</div>
+                        <div className="logo"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</div>
                         <p>The AI operating system running quietly beneath academic and placement life, for students who'd rather build than chase.</p>
                     </div>
                     <div className="footer-col">
@@ -405,7 +404,7 @@ const LandingPage: React.FC = () => {
                     </div>
                     </div>
                     <div className="footer-bottom">
-                    <span>� 2026 CareerOS. All systems operational.</span>
+                    <span> 2026 Nexora. All systems operational.</span>
                     <span>Built for students who ship.</span>
                     </div>
                 </div>

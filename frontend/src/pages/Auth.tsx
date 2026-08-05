@@ -55,9 +55,15 @@ const Auth: React.FC = () => {
             
             <div className="w-full max-w-md p-8 relative z-10">
                 <div className="text-center mb-8">
-                    <div className="flex items-center justify-center gap-2 font-bold text-xl tracking-wide mb-2">
-                        <span className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 shadow-[0_0_12px_rgba(62,123,255,0.8)]"></span>
-                        CareerOS
+                    <div className="flex items-center justify-center gap-3 font-bold text-2xl tracking-wider mb-2">
+                        <div className="w-8 h-8 relative flex items-center justify-center shrink-0">
+                            <div className="absolute inset-0 border-t-2 border-l-2 border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></div>
+                            <div className="absolute inset-0 border-b-2 border-r-2 border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></div>
+                            <span className="font-black text-xs text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[-1px]">
+                                N
+                            </span>
+                        </div>
+                        Nexora
                     </div>
                     <h1 className="text-2xl font-bold mt-6 mb-2">
                         {isLogin ? 'Welcome back' : 'Create your account'}

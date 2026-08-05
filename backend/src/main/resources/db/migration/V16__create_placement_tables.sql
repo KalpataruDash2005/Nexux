@@ -1,0 +1,57 @@
+CREATE TABLE placement_resumes (
+    id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    text LONGTEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_placement_resumes PRIMARY KEY (id),
+    CONSTRAINT fk_placement_resume_owner FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE,
+    INDEX idx_placement_resume_owner (owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE placement_resume_analyses (
+    id VARCHAR(36) NOT NULL,
+    resume_id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    analysis_json LONGTEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_placement_resume_analyses PRIMARY KEY (id),
+    CONSTRAINT fk_placement_analysis_resume FOREIGN KEY (resume_id) REFERENCES placement_resumes (id) ON DELETE CASCADE,
+    CONSTRAINT fk_placement_analysis_owner FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE,
+    INDEX idx_placement_analysis_owner (owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE placement_sessions (
+    id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    type VARCHAR(30) NOT NULL,
+    mode VARCHAR(20) NOT NULL DEFAULT 'AI',
+    role VARCHAR(100),
+    company VARCHAR(100),
+    difficulty VARCHAR(20),
+    topic VARCHAR(100),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    score INT NULL,
+    payload_json LONGTEXT,
+    summary TEXT,
+    started_at TIMESTAMP NULL,
+    ended_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_placement_sessions PRIMARY KEY (id),
+    CONSTRAINT fk_placement_session_owner FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE,
+    INDEX idx_placement_session_owner_created (owner_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE placement_messages (
+    id VARCHAR(36) NOT NULL,
+    session_id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    content LONGTEXT NOT NULL,
+    analysis_json LONGTEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_placement_messages PRIMARY KEY (id),
+    CONSTRAINT fk_placement_message_session FOREIGN KEY (session_id) REFERENCES placement_sessions (id) ON DELETE CASCADE,
+    CONSTRAINT fk_placement_message_owner FOREIGN KEY (owner_id) REFERENCES users (id) ON DELETE CASCADE,
+    INDEX idx_placement_message_session (session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

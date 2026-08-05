@@ -36,7 +36,7 @@ const Register: React.FC = () => {
       <div className="max-w-md w-full bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-700">
         <div className="p-8">
           <h2 className="text-3xl font-bold text-center text-white mb-2">Create Account</h2>
-          <p className="text-center text-gray-400 mb-8">Join CareerOS to jumpstart your future</p>
+          <p className="text-center text-gray-400 mb-8">Join Nexora to jumpstart your future</p>
           
           {error && (
             <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-lg mb-6 text-sm">
