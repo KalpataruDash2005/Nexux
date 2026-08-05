@@ -1,0 +1,67 @@
+.tasks-cal .react-calendar {
+  width: 100%;
+  border: none;
+  font-family: inherit;
+  background: transparent;
+}
+.tasks-cal .react-calendar__navigation {
+  display: flex;
+  margin-bottom: 8px;
+}
+.tasks-cal .react-calendar__navigation button {
+  min-width: 34px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  border-radius: 10px;
+}
+.tasks-cal .react-calendar__navigation button:enabled:hover {
+  background: rgba(148, 163, 184, 0.15);
+}
+.tasks-cal .react-calendar__navigation__label {
+  flex-grow: 1;
+  text-align: center;
+}
+.tasks-cal .react-calendar__month-view__weekdays {
+  text-align: center;
+}
+.tasks-cal .react-calendar__month-view__weekdays__weekday {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #64748b;
+  padding-bottom: 6px;
+}
+.tasks-cal .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+.tasks-cal .react-calendar__month-view__days__day {
+  aspect-ratio: 1;
+  font-size: 13px;
+  color: #e2e8f0;
+  border-radius: 10px;
+  position: relative;
+}
+.tasks-cal .react-calendar__month-view__days__day--weekend {
+  color: #94a3b8;
+}
+.tasks-cal .react-calendar__month-view__days__day--neighboringMonth {
+  color: #475569;
+}
+.tasks-cal .react-calendar__tile:enabled:hover {
+  background: rgba(148, 163, 184, 0.15);
+}
+.tasks-cal .react-calendar__tile--now {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  font-weight: 700;
+}
+.tasks-cal .react-calendar__tile--active {
+  background: linear-gradient(135deg, #2563eb, #7c3aed) !important;
+  color: white !important;
+}
+.tasks-cal .react-calendar__tile--active:enabled:hover {
+  background: linear-gradient(135deg, #2563eb, #7c3aed) !important;
+}
+.tasks-cal .react-calendar__tile:disabled {
+  background: transparent;
+}

@@ -41,7 +41,7 @@ const PlacementDashboard: React.FC<PlacementNavProps> = () => {
     : 0;
 
   return (
-    <div className="phq-fade-in space-y-6">
+    <div className="space-y-6">
       {/* Readiness + stat chips */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="flex flex-col items-center justify-center py-8">

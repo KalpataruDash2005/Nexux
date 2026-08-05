@@ -520,3 +520,18 @@ export async function getRoadmap(): Promise<RoadmapData> {
     throw new Error(errorMessage(err, 'Could not load your roadmap.'));
   }
 }
+
+export interface PlacementResetResponse {
+  reset: boolean;
+  deletedSessions: number;
+  deletedResumes: number;
+}
+
+export async function resetPlacementActivity(): Promise<PlacementResetResponse> {
+  try {
+    const res = await apiClient.delete<PlacementResetResponse>(`${base}/reset`);
+    return res.data;
+  } catch (err) {
+    throw new Error(errorMessage(err, 'Could not reset your placement activity.'));
+  }
+}

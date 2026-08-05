@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, BookOpen, Briefcase, Search, Bell, Command, Sparkles, Folder, LogOut } from 'lucide-react';
-import { getMyProfile } from '../services/profileService';
+import { Home, BookOpen, Briefcase, Search, Bell, Command, Folder, LogOut, CheckSquare } from 'lucide-react';import { getMyProfile } from '../services/profileService';
 import { StudentProfileDto } from '../types/profile';
 import { getWorkspaces, Workspace } from '../services/workspaceService';
 import { useAuth } from '../context/AuthContext';
@@ -95,9 +94,9 @@ const TopNav: React.FC = () => {
             <BookOpen size={18} />
             <span>Academics</span>
           </NavLink>
-          <NavLink to="/ai-planner" className={({ isActive }) => "flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors " + (isActive ? "text-purple-700 bg-purple-50" : "text-gray-600 hover:bg-gray-50")}>
-            <Sparkles size={18} />
-            <span>AI Planner</span>
+          <NavLink to="/tasks" className={({ isActive }) => "flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors " + (isActive ? "text-purple-700 bg-purple-50" : "text-gray-600 hover:bg-gray-50")}>
+            <CheckSquare size={18} />
+            <span>Tasks</span>
           </NavLink>
           <NavLink to="/placement" className={({ isActive }) => "flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors " + (isActive ? "text-purple-700 bg-purple-50" : "text-gray-600 hover:bg-gray-50")}>
             <Briefcase size={18} />

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import TopNav from './components/TopNav';
 import WorkspaceList from './pages/WorkspaceList';
 import AcademicWorkspace from './pages/AcademicWorkspace';
-import AiPlanner from './pages/AiPlanner';
+import Tasks from './pages/Tasks';
 import Placement from './pages/Placement';
 import Dashboard from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
@@ -46,8 +46,8 @@ const App: React.FC = () => {
         <Route element={<ProtectedLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/workspaces" element={<WorkspaceList />} />
-          <Route path="/workspaces/:workspaceId" element={<AcademicWorkspace />} />
-            <Route path="/ai-planner" element={<AiPlanner />} />
+            <Route path="/workspaces/:workspaceId" element={<AcademicWorkspace />} />
+            <Route path="/tasks" element={<Tasks />} />
             <Route path="/placement" element={<Placement />} />
         </Route>
         

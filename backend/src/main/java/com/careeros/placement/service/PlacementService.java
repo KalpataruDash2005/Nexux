@@ -325,6 +325,26 @@ public class PlacementService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public PlacementResetResponse resetAll(String ownerEmail) {
+        User owner = resolveOwner(ownerEmail);
+        List<PlacementSession> sessions = sessionRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId());
+        List<PlacementResume> resumes = resumeRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId());
+        int sessionCount = sessions.size();
+        int resumeCount = resumes.size();
+        if (!sessions.isEmpty()) {
+            sessionRepository.deleteAll(sessions);
+        }
+        if (!resumes.isEmpty()) {
+            resumeRepository.deleteAll(resumes);
+        }
+        readinessCache.remove(ownerEmail);
+        roadmapCache.remove(ownerEmail);
+        log.info("Placement activity reset for user {}: {} sessions, {} resumes removed",
+                ownerEmail, sessionCount, resumeCount);
+        return new PlacementResetResponse(true, sessionCount, resumeCount);
+    }
+
     public SessionDetailResponse getSessionDetail(String ownerEmail, String id) {
         PlacementSession session = requireSession(ownerEmail, id);
         List<MessageDto> messages = messageRepository.findBySessionIdOrderByCreatedAtAsc(session.getId()).stream()

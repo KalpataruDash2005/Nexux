@@ -1,39 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { getMyProfile } from '../services/profileService';
 import { StudentProfileDto } from '../types/profile';
 import { getWorkspaces, Workspace } from '../services/workspaceService';
 import { useAuth } from '../context/AuthContext';
 import { BookOpen, FolderOpen, Sparkles, TrendingUp, Award, Zap, ArrowRight } from 'lucide-react';
-import {
-  getTodayFocus, getStats, getEvents,
-  TodayFocusResponse, PlannerStats, PlannerEvent,
-} from '../services/plannerService';
-import TodayFocusCard from '../components/planner/TodayFocusCard';
-import MiniCalendarCard from '../components/planner/MiniCalendarCard';
-import StudyProgressCard from '../components/planner/StudyProgressCard';
+import PlacementDashboard from '../components/placement/PlacementDashboard';
+import WelcomePopup from '../components/tasks/WelcomePopup';
 
 const Dashboard: React.FC = () => {
   const [profile, setProfile] = useState<StudentProfileDto | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [today, setToday] = useState<TodayFocusResponse | null>(null);
-  const [stats, setStats] = useState<PlannerStats | null>(null);
-  const [plannerEvents, setPlannerEvents] = useState<PlannerEvent[]>([]);
-  const [plannerLoading, setPlannerLoading] = useState(true);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     getMyProfile().then(setProfile).catch(console.error);
     getWorkspaces().then(setWorkspaces).catch(console.error);
-    Promise.all([getTodayFocus(), getStats(), getEvents()])
-      .then(([t, s, e]) => {
-        setToday(t);
-        setStats(s);
-        setPlannerEvents(e);
-      })
-      .catch(console.error)
-      .finally(() => setPlannerLoading(false));
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -135,8 +119,8 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Recent Workspaces + Today's Focus */}
-            <div className="lg:col-span-2 space-y-8">
+            {/* Recent Workspaces */}
+            <div className="lg:col-span-2">
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-lg font-bold text-gray-900 flex items-center space-x-2">
@@ -186,18 +170,26 @@ const Dashboard: React.FC = () => {
                   </div>
                 )}
               </div>
-
-              <TodayFocusCard data={today} loading={plannerLoading} />
             </div>
 
-            {/* Mini Calendar + Study Progress */}
-            <div className="space-y-8">
-              <MiniCalendarCard events={plannerEvents} loading={plannerLoading} />
-              <StudyProgressCard progress={stats?.studyProgress ?? []} loading={plannerLoading} />
+            {/* Placement Dashboard Section */}
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <TrendingUp size={24} className="text-emerald-600" />
+                Career Readiness
+              </h2>
+              <PlacementDashboard
+                onNavigate={(view, sessionId) => {
+                  navigate(`/placement?view=${view}${sessionId ? `&session=${sessionId}` : ''}`);
+                }}
+              />
             </div>
           </div>
         </div>
       </main>
+      <WelcomePopup
+        onOpenTasks={() => navigate('/tasks')}
+      />
     </div>
   );
 };

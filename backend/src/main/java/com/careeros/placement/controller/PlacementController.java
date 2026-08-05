@@ -75,6 +75,11 @@ public class PlacementController {
         return ResponseEntity.ok(placementService.createSession(getCurrentUserEmail(), request));
     }
 
+    @DeleteMapping("/reset")
+    public ResponseEntity<PlacementResetResponse> resetPlacement() {
+        return ResponseEntity.ok(placementService.resetAll(getCurrentUserEmail()));
+    }
+
     @GetMapping("/sessions")
     public ResponseEntity<List<PlacementSessionDto>> getSessions() {
         return ResponseEntity.ok(placementService.getSessions(getCurrentUserEmail()));
