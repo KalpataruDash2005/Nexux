@@ -6,6 +6,7 @@ import {
   getSession, sendMessage, endSession, PlacementSession, InterviewFeedback,
 } from '../../services/placementService';
 import { Card, TypeBadge, DifficultyChip, Ring, ScoreBar, LoadingSpinner } from './ui';
+import { useConfirm } from '../ui/Confirm';
 
 interface ChatUiMessage {
   id: string;
@@ -28,6 +29,7 @@ const SESSION_DEFAULT: PlacementSession = {
   createdAt: '',
   startedAt: null,
   endedAt: null,
+  summary: null,
 };
 
 const InterviewChat: React.FC<{
@@ -40,6 +42,7 @@ const InterviewChat: React.FC<{
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const { confirm } = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const [completed, setCompleted] = useState(false);
   const [finalSummary, setFinalSummary] = useState<string | null>(null);
@@ -64,7 +67,7 @@ const InterviewChat: React.FC<{
         if (detail.session.status.toUpperCase() === 'COMPLETED') {
           setCompleted(true);
           setFinalScore(detail.session.score);
-          setFinalSummary(detail.session.endedAt ? 'This interview has been completed.' : null);
+          setFinalSummary(detail.session.summary || 'This interview has been completed.');
         }
       })
       .catch((err) => setError((err as Error).message))
@@ -95,7 +98,7 @@ const InterviewChat: React.FC<{
           ? [{ id: `ai-${idRef.current++}`, role: 'assistant' as const, content: feedback.nextQuestion, feedback: null }]
           : []),
       ]);
-      setFinalScore(feedback.score);
+      setFinalScore(feedback ? feedback.score : null);
       if (res.sessionCompleted) {
         setCompleted(true);
         setFinalSummary(res.finalSummary);
@@ -115,7 +118,12 @@ const InterviewChat: React.FC<{
   };
 
   const handleEnd = async () => {
-    if (!window.confirm('End this interview now? The AI will score your performance so far.')) return;
+    const ok = await confirm({
+      title: 'End this interview?',
+      message: 'End this interview now? The AI will score your performance so far.',
+      confirmText: 'End interview',
+    });
+    if (!ok) return;
     setError(null);
     try {
       const res = await endSession(sessionId);
@@ -148,17 +156,17 @@ const InterviewChat: React.FC<{
   return (
     <Card className="flex h-[calc(100vh-15rem)] min-h-[520px] flex-col p-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200" aria-label="Back to interviews">
+          <button onClick={onBack} className="rounded-lg p-2 text-muted transition-colors hover:bg-tag-bg hover:text-foreground" aria-label="Back to interviews">
             <ArrowLeft size={18} />
           </button>
           <TypeBadge type={session.type} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-slate-100">
+            <p className="truncate text-sm font-bold text-foreground">
               {session.role || session.topic || 'Interview'} {session.company ? `@ ${session.company}` : ''}
             </p>
-            <p className="text-xs text-slate-500">Live AI interview · {session.mode}</p>
+            <p className="text-xs text-muted">Live AI interview · {session.mode}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -166,7 +174,7 @@ const InterviewChat: React.FC<{
           {!completed && (
             <button
               onClick={handleEnd}
-              className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs font-bold text-rose-300 transition-colors hover:bg-rose-500/10"
+              className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-100"
             >
               End interview
             </button>
@@ -177,11 +185,11 @@ const InterviewChat: React.FC<{
       {/* Messages */}
       <div ref={scrollRef} className="phq-scrollbar flex-1 space-y-4 overflow-y-auto px-5 py-5">
         {error && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">{error}</div>
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>
         )}
 
         {messages.length === 0 && !completed && (
-          <div className="py-8 text-center text-sm text-slate-500">The interviewer is ready. Answer the first question below.</div>
+          <div className="py-8 text-center text-sm text-muted">The interviewer is ready. Answer the first question below.</div>
         )}
 
         {messages.map((m) => (
@@ -195,8 +203,8 @@ const InterviewChat: React.FC<{
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                     m.role === 'user'
-                      ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
-                      : 'border border-violet-500/40 bg-violet-500/10 text-violet-300'
+                      ? 'bg-primary text-white'
+                      : 'border border-primary-soft bg-primary-soft text-primary'
                   }`}
                 >
                   {m.role === 'user' ? <User size={15} /> : <Bot size={15} />}
@@ -204,8 +212,8 @@ const InterviewChat: React.FC<{
                 <div
                   className={`rounded-2xl px-4 py-3 text-sm ${
                     m.role === 'user'
-                      ? 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white'
-                      : 'border border-slate-800 bg-slate-900 text-slate-200'
+                      ? 'bg-primary text-white'
+                      : 'border border-border bg-tag-bg text-foreground'
                   }`}
                 >
                   {m.role === 'assistant' ? (
@@ -226,10 +234,10 @@ const InterviewChat: React.FC<{
         {sending && (
           <div className="phq-slide-in flex justify-start">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-violet-500/40 bg-violet-500/10 text-violet-300">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-primary-soft bg-primary-soft text-primary">
                 <Bot size={15} />
               </div>
-              <div className="flex items-center gap-1.5 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3">
+              <div className="flex items-center gap-1.5 rounded-2xl border border-border bg-tag-bg px-4 py-3">
                 <span className="phq-typing-dot" />
                 <span className="phq-typing-dot" />
                 <span className="phq-typing-dot" />
@@ -243,7 +251,7 @@ const InterviewChat: React.FC<{
 
       {/* Input */}
       {!completed && (
-        <div className="border-t border-slate-800 p-4">
+        <div className="border-t border-border p-4">
           <div className="flex items-end gap-3">
             <textarea
               value={input}
@@ -251,12 +259,12 @@ const InterviewChat: React.FC<{
               onKeyDown={handleKeyDown}
               rows={2}
               placeholder="Type your answer… (Enter to send, Shift+Enter for new line)"
-              className="phq-scrollbar flex-1 resize-none rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-600 outline-none transition-colors focus:border-emerald-500/50"
+              className="phq-scrollbar flex-1 resize-none rounded-xl border border-border bg-white px-4 py-3 text-sm text-foreground placeholder-muted outline-none transition-colors focus:border-primary"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || sending}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-card transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Send answer"
             >
               <Send size={18} />
@@ -270,20 +278,24 @@ const InterviewChat: React.FC<{
 
 const FeedbackPanel: React.FC<{ feedback: InterviewFeedback }> = ({ feedback }) => {
   const [open, setOpen] = useState(false);
+  const scores = feedback.scores ?? {};
+  const strengths = feedback.strengths ?? [];
+  const weaknesses = feedback.weaknesses ?? [];
+  const tips = feedback.improvementTips ?? [];
   const axes: { label: string; value: number }[] = [
-    { label: 'Confidence', value: feedback.scores.confidence },
-    { label: 'Communication', value: feedback.scores.communication },
-    { label: 'Grammar', value: feedback.scores.grammar },
-    { label: 'Technical Accuracy', value: feedback.scores.technicalAccuracy },
-    { label: 'Structure', value: feedback.scores.structure },
-    { label: 'Completeness', value: feedback.scores.completeness },
+    { label: 'Confidence', value: scores.confidence ?? 0 },
+    { label: 'Communication', value: scores.communication ?? 0 },
+    { label: 'Grammar', value: scores.grammar ?? 0 },
+    { label: 'Technical Accuracy', value: scores.technicalAccuracy ?? 0 },
+    { label: 'Structure', value: scores.structure ?? 0 },
+    { label: 'Completeness', value: scores.completeness ?? 0 },
   ];
 
   return (
-    <div className="phq-fade-in mt-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+    <div className="phq-fade-in mt-3 rounded-2xl border border-border bg-surface-tint p-4">
       <div className="flex items-center gap-4">
         <div className="shrink-0">
-          <Ring value={feedback.score} size={72} stroke={7} gradientId="fbRing" label={`${Math.round(feedback.score)}`} sublabel="score" />
+          <Ring value={feedback.score ?? 0} size={72} stroke={7} gradientId="fbRing" label={`${Math.round(feedback.score ?? 0)}`} sublabel="score" />
         </div>
         <div className="grid flex-1 grid-cols-2 gap-x-5 gap-y-2">
           {axes.map((a) => (
@@ -294,35 +306,35 @@ const FeedbackPanel: React.FC<{ feedback: InterviewFeedback }> = ({ feedback }) 
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div>
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700">
             <CheckCircle2 size={13} /> Strengths
           </p>
           <ul className="space-y-1">
-            {feedback.strengths.map((s, i) => (
-              <li key={i} className="text-sm text-slate-300">· {s}</li>
+            {strengths.map((s, i) => (
+              <li key={i} className="text-sm text-foreground">· {s}</li>
             ))}
           </ul>
         </div>
         <div>
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-rose-400">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-rose-600">
             <XCircle size={13} /> To improve
           </p>
           <ul className="space-y-1">
-            {feedback.weaknesses.map((s, i) => (
-              <li key={i} className="text-sm text-slate-300">· {s}</li>
+            {weaknesses.map((s, i) => (
+              <li key={i} className="text-sm text-foreground">· {s}</li>
             ))}
           </ul>
         </div>
       </div>
 
-      {feedback.improvementTips.length > 0 && (
+      {tips.length > 0 && (
         <div className="mt-4">
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-400">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-700">
             <Lightbulb size={13} /> Improvement tips
           </p>
           <ul className="space-y-1">
-            {feedback.improvementTips.map((t, i) => (
-              <li key={i} className="text-sm text-slate-300">· {t}</li>
+            {tips.map((t, i) => (
+              <li key={i} className="text-sm text-foreground">· {t}</li>
             ))}
           </ul>
         </div>
@@ -331,14 +343,14 @@ const FeedbackPanel: React.FC<{ feedback: InterviewFeedback }> = ({ feedback }) 
       {feedback.idealAnswer && (
         <button
           onClick={() => setOpen((o) => !o)}
-          className="mt-4 flex w-full items-center justify-between rounded-xl border border-violet-500/30 bg-violet-500/5 px-4 py-2.5 text-sm font-semibold text-violet-300 transition-colors hover:bg-violet-500/10"
+          className="mt-4 flex w-full items-center justify-between rounded-xl border border-primary-soft bg-primary-tint px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-soft"
         >
           View ideal answer
           <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       )}
       {open && feedback.idealAnswer && (
-        <div className="phq-fade-in mt-3 rounded-xl border border-slate-800 bg-slate-950 p-4">
+        <div className="phq-fade-in mt-3 rounded-xl border border-border bg-tag-bg p-4">
           <div className="phq-markdown">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{feedback.idealAnswer}</ReactMarkdown>
           </div>
@@ -349,11 +361,11 @@ const FeedbackPanel: React.FC<{ feedback: InterviewFeedback }> = ({ feedback }) 
 };
 
 const CompletionCard: React.FC<{ score: number | null; summary: string | null; onNew: () => void }> = ({ score, summary, onNew }) => (
-  <div className="phq-fade-up rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-violet-500/10 p-6 text-center">
-    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-300">
+  <div className="phq-fade-up rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-surface-tint p-6 text-center">
+    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
       <Trophy size={24} />
     </div>
-    <h3 className="text-xl font-extrabold text-slate-100">Interview complete!</h3>
+    <h3 className="text-xl font-extrabold text-foreground">Interview complete!</h3>
     {score != null && (
       <div className="mt-4 flex justify-center">
         <Ring value={score} size={120} stroke={11} gradientId="completionRing" label={`${Math.round(score)}`} sublabel="final score" />
@@ -366,7 +378,7 @@ const CompletionCard: React.FC<{ score: number | null; summary: string | null; o
     )}
     <button
       onClick={onNew}
-      className="mt-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/40"
+      className="mt-5 rounded-xl bg-primary hover:bg-primary-hover px-6 py-2.5 text-sm font-bold text-white shadow-card transition-all hover:shadow-lg"
     >
       Start a new interview
     </button>

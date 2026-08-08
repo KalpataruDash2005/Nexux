@@ -1,25 +1,24 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: careeros-mysql
+  postgres:
+    image: postgres:16-alpine
+    container_name: careeros-postgres
     restart: always
     environment:
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+      POSTGRES_DB: ${DB_NAME:-careeros_db}
+      POSTGRES_USER: ${DB_USER:-careeros_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:3306"
+      - "${DB_PORT:-5432}:5432"
     volumes:
-      - careeros-mysql-data:/var/lib/mysql
+      - careeros-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$$DB_USER", "-p$$DB_PASSWORD"]
+      test: ["CMD-SHELL", "pg_isready -U $$DB_USER -d $$DB_NAME"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 10s
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
@@ -58,11 +57,9 @@ services:
       - careeros-qdrant-data:/qdrant/storage
 
 volumes:
-  careeros-mysql-data:
-    external: true
-    name: docker_mysql-data
+  careeros-postgres-data:
+    driver: local
   n8n-data:
     driver: local
   careeros-qdrant-data:
-    external: true
-    name: docker_qdrant-data
+    driver: local

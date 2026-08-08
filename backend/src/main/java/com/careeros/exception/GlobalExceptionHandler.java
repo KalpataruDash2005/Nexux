@@ -1,5 +1,6 @@
 package com.careeros.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @ControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -24,7 +26,7 @@ public class GlobalExceptionHandler {
         String errorMessage = ex.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
-        
+
         body.put("timestamp", LocalDateTime.now());
         body.put("message", errorMessage);
         body.put("status", HttpStatus.BAD_REQUEST.value());
@@ -37,7 +39,7 @@ public class GlobalExceptionHandler {
         body.put("timestamp", LocalDateTime.now());
         body.put("message", ex.getMessage());
         body.put("status", HttpStatus.BAD_REQUEST.value());
-        
+
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
@@ -61,14 +63,23 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
-        ex.printStackTrace(); // Log the full stack trace to the console
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleFileTooLargeException(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
-        body.put("message", ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred");
+        body.put("message", "Uploaded file is too large");
+        body.put("status", HttpStatus.PAYLOAD_TOO_LARGE.value());
+        return new ResponseEntity<>(body, HttpStatus.PAYLOAD_TOO_LARGE);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        log.error("Unhandled exception", ex);
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("message", "An unexpected error occurred");
         body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        
+
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

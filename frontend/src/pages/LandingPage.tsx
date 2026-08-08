@@ -1,8 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './LandingPage.css';
+import { submitFeedback } from '../services/feedbackService';
+import PromoVideoMarquee from '../components/PromoVideoMarquee';
 
 const LandingPage: React.FC = () => {
+    const [feedbackSent, setFeedbackSent] = useState(false);
+    const [feedbackSending, setFeedbackSending] = useState(false);
+    const [feedbackError, setFeedbackError] = useState('');
+
+    const handleFeedbackSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setFeedbackError('');
+        setFeedbackSending(true);
+        const form = e.currentTarget;
+        const data = new FormData(form);
+        try {
+            await submitFeedback({
+                name: String(data.get('name') || ''),
+                email: String(data.get('email') || ''),
+                message: String(data.get('message') || ''),
+            });
+            setFeedbackSent(true);
+        } catch {
+            setFeedbackError('Could not send your feedback right now. Please try again.');
+        } finally {
+            setFeedbackSending(false);
+        }
+    };
     useEffect(() => {
         /* ============ STARFIELD ============ */
         const canvas = document.getElementById('starfield') as HTMLCanvasElement;
@@ -47,52 +72,6 @@ const LandingPage: React.FC = () => {
             // Clean up
             return () => {
                 window.removeEventListener('resize', resizeStarfield);
-                cancelAnimationFrame(animationFrameId);
-            };
-        }
-    }, []);
-
-    useEffect(() => {
-        /* ============ HERO DUST PARTICLES ============ */
-        const canvas = document.getElementById('hero-particles') as HTMLCanvasElement;
-        if (canvas && canvas.parentElement) {
-            const ctx = canvas.getContext('2d');
-            let w: number, h: number, parts: any[] = [];
-            const DPR = Math.min(window.devicePixelRatio || 1, 2);
-            
-            const resizeParticles = () => {
-                const rect = canvas.parentElement!.getBoundingClientRect();
-                w = canvas.width = rect.width * DPR;
-                h = canvas.height = rect.height * DPR;
-                canvas.style.width = rect.width + 'px';
-                canvas.style.height = rect.height + 'px';
-                parts = Array.from({ length: 40 }, () => ({
-                    x: Math.random() * w, y: Math.random() * h, r: Math.random() * 1.5 * DPR + 0.4,
-                    vx: (Math.random() - 0.5) * 0.15, vy: (Math.random() - 0.5) * 0.15, a: Math.random() * 0.4 + 0.1
-                }));
-            };
-            
-            let animationFrameId: number;
-            const drawParticles = () => {
-                if(!ctx) return;
-                ctx.clearRect(0, 0, w, h);
-                for (const p of parts) {
-                    p.x += p.vx; p.y += p.vy;
-                    if (p.x < 0) p.x = w; if (p.x > w) p.x = 0; if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
-                    ctx.beginPath();
-                    ctx.fillStyle = 'rgba(140,170,255,' + p.a + ')';
-                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                animationFrameId = requestAnimationFrame(drawParticles);
-            };
-            
-            window.addEventListener('resize', resizeParticles);
-            resizeParticles();
-            drawParticles();
-            
-            return () => {
-                window.removeEventListener('resize', resizeParticles);
                 cancelAnimationFrame(animationFrameId);
             };
         }
@@ -210,44 +189,48 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div className="nav-cta-group">
                     <Link to="/auth" className="nav-signin">Sign in</Link>
-                    <Link to="/auth" className="btn btn-primary btn-sm">Launch Nexora</Link>
+                    <Link to="/auth?mode=signup" className="btn btn-primary btn-sm">Launch Nexora</Link>
                     </div>
                 </div>
                 </nav>
 
                 <section id="hero">
+                <div className="hero-video-bg">
+                    <video src="/videos/Video%20Project%201.mp4" poster="/videos/hero-poster.jpg" autoPlay muted loop playsInline preload="metadata" ref={(el) => { if (el) el.playbackRate = 0.55; }}></video>
+                    <div className="hero-video-overlay"></div>
+                    <div className="hero-readability"></div>
+                </div>
                 <div className="wrap">
-                    <span className="eyebrow">AI Operating System - For Students</span>
-                    <div className="hero-stage">
-                    <canvas id="hero-particles"></canvas>
-                    <div className="ai-core-wrap" id="ai-core">
-                        <div className="core-glow"></div>
-                        <div className="core-ring r1"></div>
-                        <div className="core-ring r2"></div>
-                        <div className="core-ring r3"></div>
-                        <div className="core-sphere"></div>
-                    </div>
-                    </div>
-                    <h1>Your AI Operating System for<br/>Academic &amp; Placement Success</h1>
-                    <p className="sub">Nexora runs quietly behind every decision you make in college  tracking coursework, building your resume, training you for interviews, and clearing a straight path to placement.</p>
+                    <span className="eyebrow hero-badge"><i className="pulse-dot"></i> AI Operating System · For Students</span>
+                    <h1>Your AI Operating System for<br/><span className="grad-word">Academic &amp; Placement Success</span></h1>
+                    <p className="sub">Nexora turns your college life into a single operating system  AI-planned tasks, organized academic workspaces, an ATS-tuned resume, live mock interviews and a mentor that remembers your context.</p>
                     <div className="hero-ctas">
-                    <Link to="/auth" className="btn btn-primary">Enter Nexora</Link>
-                    <a href="#agents" className="btn btn-ghost">Watch it think</a>
-                    </div>
-                    
-                    <div className="dashboard-preview mt-16 mb-16 relative w-full max-w-5xl mx-auto rounded-xl overflow-hidden border border-[rgba(255,255,255,0.1)] shadow-[0_0_50px_rgba(62,123,255,0.3)] animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                        <img src="/demo-dashboard.jpg" alt="Nexora Demo Dashboard" className="w-full h-auto block" />
+                    <Link to="/auth?mode=signup" className="btn btn-primary">Enter Nexora &rarr;</Link>
+                    <a href="#agents" className="btn btn-ghost">See how it works</a>
                     </div>
 
+                    <div className="dashboard-preview mt-64 mb-20 relative w-full max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                        <div className="dashboard-frame">
+                            <div className="dashboard-bar">
+                                <span className="dot r"></span><span className="dot y"></span><span className="dot g"></span>
+                                <span className="dashboard-url">nexora.ai</span>
+                            </div>
+                            <img src="/demo-dashboard.jpg" alt="Nexora Demo Dashboard" className="w-full h-auto block" />
+                        </div>
+                        <div className="dashboard-caption">
+                            Your command center  tasks, academics, placement readiness and interviews all reporting back to a single intelligent core.
+                        </div>
+                    </div>
+                    
                     <div className="stat-strip">
-                    <div className="stat"><b>12,400+</b><span>Students onboard</span></div>
-                    <div className="divider"></div>
                     <div className="stat"><b>340</b><span>Campuses live</span></div>
                     <div className="divider"></div>
                     <div className="stat"><b>91%</b><span>Readiness lift</span></div>
                     <div className="divider"></div>
                     <div className="stat"><b>24/7</b><span>Agent uptime</span></div>
                     </div>
+
+                    <PromoVideoMarquee />
                 </div>
                 </section>
 
@@ -256,38 +239,38 @@ const LandingPage: React.FC = () => {
                     <div className="section-head reveal">
                     <span className="eyebrow" style={{justifyContent:'center'}}>System Modules</span>
                     <h2>Six systems. One operating layer.</h2>
-                    <p>Every part of student life Nexora touches, engineered as a distinct intelligence that reports back to one core.</p>
+                    <p>Every module works as one unit  your tasks, academics, resume and interviews all report back to a single intelligent core.</p>
                     </div>
                     <div className="feature-grid reveal-stagger">
                     <div className="glass-card tilt-target">
                         <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6"><path d="M4 19V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13"/><path d="M4 19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2"/><path d="M8 8h8M8 12h5"/></svg></div>
-                        <h3>Academic Intelligence</h3>
-                        <p>Live GPA modeling, syllabus tracking and exam forecasting that flags risk before it becomes a grade.</p>
+                        <h3>Academic Workspaces</h3>
+                        <p>Keep courses, notes, PDFs and study chats organized in dedicated workspaces, with everything indexed and one click away.</p>
                     </div>
                     <div className="glass-card tilt-target">
                         <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
-                        <h3>Placement Engine</h3>
-                        <p>Matches your profile against live company drives and ranks your odds against real hiring bars.</p>
+                        <h3>Placement Preparation</h3>
+                        <p>Coding problems, aptitude tests and interview sessions that all feed a live placement readiness score.</p>
                     </div>
                     <div className="glass-card tilt-target">
                         <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
-                        <h3>AI Resume Studio</h3>
-                        <p>Rewrites and scores your resume line by line against ATS parsers used by real recruiters.</p>
+                        <h3>AI Resume Analyzer</h3>
+                        <p>Upload your resume and get a line-by-line AI analysis and score against recruiter-style parsing rules.</p>
                     </div>
                     <div className="glass-card tilt-target">
                         <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg></div>
                         <h3>Mock Interview Room</h3>
-                        <p>A voice-driven AI interviewer that adapts difficulty in real time and scores tone, clarity and depth.</p>
+                        <p>A live AI interviewer that runs technical, role and HR rounds and scores your clarity and depth.</p>
                     </div>
                     <div className="glass-card tilt-target">
                         <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></div>
-                        <h3>AI Career Mentor</h3>
-                        <p>A standing agent that studies your trajectory and nudges you toward the roles you're actually built for.</p>
+                        <h3>AI Task Assistant</h3>
+                        <p>Describe a goal in plain words and the AI plans the work, sets smart deadlines and schedules it around your day.</p>
                     </div>
                     <div className="glass-card tilt-target">
                         <div className="feature-icon"><svg viewBox="0 0 24 24" fill="none" strokeWidth="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
-                        <h3>Daily Planner</h3>
-                        <p>Rebuilds your schedule every morning around deadlines, energy and what actually moves the needle.</p>
+                        <h3>AI Assistant &amp; Mentor</h3>
+                        <p>A context-aware assistant on every page that remembers your goals and guides your very next step.</p>
                     </div>
                     </div>
                 </div>
@@ -299,37 +282,44 @@ const LandingPage: React.FC = () => {
                     <span className="eyebrow" style={{justifyContent:'center'}}>The Agent Layer</span>
                     <h2>Five agents, always awake</h2>
                     <p>Each agent owns one part of your outcome and hands off context to the others  no dashboard-checking required.</p>
+                    <div className="agent-core" id="ai-core">
+                        <div className="core-glow"></div>
+                        <div className="core-ring r1"></div>
+                        <div className="core-ring r2"></div>
+                        <div className="core-ring r3"></div>
+                        <div className="core-sphere"><span className="core-mark">Nora<em>AI</em></span></div>
+                    </div>
                     </div>
                     <div className="agent-row reveal-stagger">
                     <div className="agent-card">
                         <div className="agent-status"><span className="dot-pulse"></span>Active</div>
                         <div className="agent-name">Atlas</div>
                         <div className="agent-role">Academic Agent</div>
-                        <p>Watches every course, deadline and grade curve so nothing slips silently.</p>
+                        <p>Keeps your workspaces, notes and study material organized so nothing important slips through.</p>
                     </div>
                     <div className="agent-card">
                         <div className="agent-status"><span className="dot-pulse"></span>Active</div>
                         <div className="agent-name">Forge</div>
                         <div className="agent-role">Resume Agent</div>
-                        <p>Continuously rewrites your resume against the exact role you're chasing.</p>
+                        <p>Analyzes your resume against recruiter-style rules and scores it before you ever send it out.</p>
                     </div>
                     <div className="agent-card">
                         <div className="agent-status"><span className="dot-pulse"></span>Active</div>
                         <div className="agent-name">Scout</div>
                         <div className="agent-role">Placement Agent</div>
-                        <p>Scans live drives daily and ranks each one against your actual readiness.</p>
+                        <p>Tracks your interview, coding and aptitude practice and ranks your readiness for real drives.</p>
                     </div>
                     <div className="agent-card">
                         <div className="agent-status"><span className="dot-pulse"></span>Active</div>
                         <div className="agent-name">Echo</div>
                         <div className="agent-role">Interview Agent</div>
-                        <p>Runs you through mock rounds and rebuilds them around your weak spots.</p>
+                        <p>Runs you through live mock rounds and rebuilds each one around your weakest answers.</p>
                     </div>
                     <div className="agent-card">
                         <div className="agent-status"><span className="dot-pulse"></span>Active</div>
                         <div className="agent-name">Sage</div>
                         <div className="agent-role">Mentor Agent</div>
-                        <p>Holds the long view  career direction, skill gaps, what to learn next.</p>
+                        <p>Remembers your context and preferences, and guides you toward the next right step.</p>
                     </div>
                     </div>
                 </div>
@@ -344,21 +334,38 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div className="reveal flex justify-center mt-12">
                         <div className="glass-card w-full max-w-xl p-8 mx-auto">
-                            <form className="space-y-4 flex flex-col" onSubmit={(e) => { e.preventDefault(); alert('Feedback submitted! Thank you.'); }}>
+                            {feedbackSent ? (
+                                <div className="flex flex-col items-center text-center py-4">
+                                    <div className="w-14 h-14 rounded-full border-2 border-emerald-400/60 text-emerald-400 flex items-center justify-center mb-4">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    </div>
+                                    <h3 className="text-white font-bold text-lg">Thank you!</h3>
+                                    <p className="text-[#8E93A0] text-sm mt-1">Your feedback has been sent to the Nexora team.</p>
+                                    <button type="button" onClick={() => setFeedbackSent(false)} className="text-[#3E7BFF] text-sm font-medium mt-4 hover:underline">Send another</button>
+                                </div>
+                            ) : (
+                            <form className="space-y-4 flex flex-col" onSubmit={handleFeedbackSubmit}>
+                                {feedbackError && (
+                                    <div className="flex items-center gap-2 border border-rose-500/40 bg-rose-500/10 rounded-lg px-4 py-3 text-rose-300 text-sm">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 shrink-0"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        {feedbackError}
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm text-[#8E93A0] mb-2 text-left">Your Name</label>
-                                    <input type="text" required className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white" placeholder="John Doe" />
+                                    <input type="text" name="name" required className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white" placeholder="John Doe" />
                                 </div>
                                 <div>
                                     <label className="block text-sm text-[#8E93A0] mb-2 text-left">Your Email</label>
-                                    <input type="email" required className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white" placeholder="student@university.edu" />
+                                    <input type="email" name="email" required className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white" placeholder="student@university.edu" />
                                 </div>
                                 <div>
                                     <label className="block text-sm text-[#8E93A0] mb-2 text-left">Feedback</label>
-                                    <textarea required rows={4} className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white resize-none" placeholder="What can we do better?"></textarea>
+                                    <textarea name="message" required rows={4} className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white resize-none" placeholder="What can we do better?"></textarea>
                                 </div>
-                                <button type="submit" className="btn btn-primary mt-6 self-end" style={{width: '100%'}}>Submit Feedback</button>
+                                <button type="submit" disabled={feedbackSending} className="btn btn-primary mt-6 self-end disabled:opacity-50" style={{width: '100%'}}>{feedbackSending ? 'Sending...' : 'Submit Feedback'}</button>
                             </form>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -372,12 +379,16 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div className="faq-list reveal">
                     <div className="faq-item">
-                        <button className="faq-q">Does Nexora replace my college's placement cell?<span className="plus"></span></button>
-                        <div className="faq-a"><p>No. It sits alongside it  Scout pulls in drives your cell posts and ranks them against your profile, so nothing your cell shares gets missed.</p></div>
+                        <button className="faq-q">How does the AI Task Assistant plan my work?<span className="plus"></span></button>
+                        <div className="faq-a"><p>Describe a goal in plain words and it breaks the work into manageable chunks, sets realistic deadlines and schedules each one around the rest of your week so nothing collides.</p></div>
                     </div>
                     <div className="faq-item">
-                        <button className="faq-q">How does Forge actually improve my resume?<span className="plus"></span></button>
-                        <div className="faq-a"><p>Forge rewrites each line against the ATS parser style of your target role, then scores the result before you ever send it out.</p></div>
+                        <button className="faq-q">How is my placement readiness measured?<span className="plus"></span></button>
+                        <div className="faq-a"><p>Every mock interview, coding problem and aptitude question updates a live readiness score across your dashboard, with your weak and strong areas laid out clearly.</p></div>
+                    </div>
+                    <div className="faq-item">
+                        <button className="faq-q">Does the resume analysis use real ATS rules?<span className="plus"></span></button>
+                        <div className="faq-a"><p>Yes. The analyzer parses your resume with recruiter-style matching, scores each section and suggests concrete, line-level improvements before you apply.</p></div>
                     </div>
                     <div className="faq-item">
                         <button className="faq-q">Is my academic data private?<span className="plus"></span></button>
@@ -392,7 +403,7 @@ const LandingPage: React.FC = () => {
                     <div className="footer-top">
                     <div className="footer-brand">
                         <div className="logo"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</div>
-                        <p>The AI operating system running quietly beneath academic and placement life, for students who'd rather build than chase.</p>
+                        <p>The AI operating system running quietly beneath academic and placement life  tasks, workspaces, resume and interviews in one place, for students who'd rather build than chase.</p>
                     </div>
                     <div className="footer-col">
                         <h4>Product</h4>

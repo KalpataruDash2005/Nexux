@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Calendar from 'react-calendar';
 import {
-  CheckSquare, Plus, Loader2, Trash2, Sparkles, CalendarDays,
+  Bot, CheckSquare, Plus, Loader2, Trash2, Sparkles, CalendarDays,
   ChevronLeft, ChevronRight, ListTodo, Inbox,
 } from 'lucide-react';
 import './../components/tasks/tasks.css';
 import {
-  Task, TaskStatus, getTasks, createTask, updateTask, deleteTask,
+  Task, TaskStatus, statusLabel, statusTextClass, getTasks, createTask, updateTask, deleteTask,
   getTaskSummary, TaskSummary, errorMessage, toDateKey,
 } from '../services/taskService';
 import AiPlanModal from '../components/tasks/AiPlanModal';
+import { assistantBus } from '../services/assistantBus';
 
 interface FormState {
   title: string;
@@ -27,6 +28,13 @@ const Tasks: React.FC = () => {
   const [form, setForm] = useState<FormState>({ title: '', deadline: '' });
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [planOpen, setPlanOpen] = useState(false);
+
+  function toDayKey(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,6 +54,12 @@ const Tasks: React.FC = () => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    return assistantBus.onTasksChanged(() => {
+      load();
+    });
+  }, [load]);
+
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
     for (const task of tasks) {
@@ -58,11 +72,15 @@ const Tasks: React.FC = () => {
     return map;
   }, [tasks]);
 
-  const selectedKey = selectedDate.toISOString().slice(0, 10);
+  const selectedKey = toDayKey(selectedDate);
   const selectedTasks = tasksByDate.get(selectedKey) ?? [];
   const sortedSelected = [...selectedTasks].sort((a, b) =>
     a.status === 'COMPLETED' ? 1 : b.status === 'COMPLETED' ? -1 : 0
   );
+
+  const askAssistantFor = (task: Task) => {
+    assistantBus.requestOpen({ taskId: task.id, taskTitle: task.title });
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +101,10 @@ const Tasks: React.FC = () => {
 
   const handleToggle = async (task: Task) => {
     const next: TaskStatus = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    const wasCompleted = task.status === 'COMPLETED';
+    const wasPending = task.status === 'PENDING';
+    const completedDelta = wasCompleted ? -1 : next === 'COMPLETED' ? 1 : 0;
+    const pendingDelta = wasPending ? (next === 'COMPLETED' ? -1 : 1) : 0;
     setTogglingId(task.id);
     setError(null);
     try {
@@ -90,8 +112,8 @@ const Tasks: React.FC = () => {
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
       setSummary((prev) => ({
         ...prev,
-        completed: next === 'COMPLETED' ? prev.completed + 1 : prev.completed - 1,
-        pending: next === 'COMPLETED' ? prev.pending - 1 : prev.pending + 1,
+        completed: prev.completed + completedDelta,
+        pending: prev.pending + pendingDelta,
       }));
     } catch (err) {
       setError(errorMessage(err, 'Could not update the task.'));
@@ -119,7 +141,7 @@ const Tasks: React.FC = () => {
     }
   };
 
-  const isToday = (date: Date) => date.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
+  const isToday = (date: Date) => toDayKey(date) === toDayKey(new Date());
 
   const sortedTasks = useMemo(
     () =>
@@ -131,24 +153,24 @@ const Tasks: React.FC = () => {
   );
 
   const statCards = [
-    { label: 'Total Tasks', value: summary.total, color: 'text-slate-100', icon: <ListTodo size={18} className="text-emerald-400" /> },
-    { label: 'Completed', value: summary.completed, color: 'text-emerald-300', icon: <CheckSquare size={18} className="text-emerald-400" /> },
-    { label: 'Pending', value: summary.pending, color: 'text-amber-300', icon: <Plus size={18} className="text-amber-400" /> },
-    { label: 'Overdue', value: summary.overdue, color: summary.overdue > 0 ? 'text-rose-300' : 'text-slate-100', icon: <CalendarDays size={18} className="text-rose-400" /> },
+    { label: 'Total Tasks', value: summary.total, color: 'text-foreground', icon: <ListTodo size={18} className="text-primary" /> },
+    { label: 'Completed', value: summary.completed, color: 'text-emerald-600', icon: <CheckSquare size={18} className="text-primary" /> },
+    { label: 'Pending', value: summary.pending, color: 'text-amber-600', icon: <Plus size={18} className="text-primary" /> },
+    { label: 'Overdue', value: summary.overdue, color: summary.overdue > 0 ? 'text-rose-600' : 'text-foreground', icon: <CalendarDays size={18} className="text-primary" /> },
   ];
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
       {/* Header */}
-      <header className="z-20 shrink-0 border-b border-slate-800 bg-slate-950">
+      <header className="z-20 shrink-0 border-b border-border bg-white">
         <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-6">
           <div className="flex shrink-0 items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-emerald-500 text-white shadow-lg shadow-violet-500/30">
               <CheckSquare size={18} />
             </div>
             <div className="leading-tight">
-              <p className="font-extrabold tracking-tight text-slate-100">Task Manager</p>
-              <p className="text-xs text-slate-400">Plan your deadlines, stay on track</p>
+              <p className="font-extrabold tracking-tight text-foreground">Task Manager</p>
+              <p className="text-xs text-muted">Plan your deadlines, stay on track</p>
             </div>
           </div>
 
@@ -156,7 +178,7 @@ const Tasks: React.FC = () => {
             onClick={() => setPlanOpen(true)}
             disabled={summary.pending === 0}
             title="Generate an AI plan for your pending tasks"
-            className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-violet-300 transition-all hover:bg-violet-500/10 hover:text-violet-200 disabled:opacity-50"
+            className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-all hover:bg-primary-tint hover:text-primary-hover disabled:opacity-50"
           >
             <Sparkles size={15} />
             <span className="hidden sm:inline">AI Task Planner</span>
@@ -170,9 +192,9 @@ const Tasks: React.FC = () => {
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {statCards.map((s) => (
-              <div key={s.label} className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800">{s.icon}</div>
+              <div key={s.label} className="rounded-2xl border border-border bg-surface-tint p-4">
+                <div className="flex items-center gap-2 text-muted">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">{s.icon}</div>
                   <span className="text-[11px] font-bold uppercase tracking-wider">{s.label}</span>
                 </div>
                 <p className={`mt-2 text-3xl font-extrabold tracking-tight ${s.color}`}>{s.value}</p>
@@ -181,7 +203,7 @@ const Tasks: React.FC = () => {
           </div>
 
           {error && (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
               {error}
             </div>
           )}
@@ -192,27 +214,27 @@ const Tasks: React.FC = () => {
               {/* Add form */}
               <form
                 onSubmit={handleCreate}
-                className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg shadow-black/20"
+                className="rounded-2xl border border-border bg-white p-5 shadow-card"
               >
-                <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">Add a new task</h3>
+                <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-muted">Add a new task</h3>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <input
                     type="text"
                     value={form.title}
                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                     placeholder="What do you need to do?"
-                    className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="flex-1 rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <input
                     type="datetime-local"
                     value={form.deadline}
                     onChange={(e) => setForm((f) => ({ ...f, deadline: e.target.value }))}
-                    className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
                     type="submit"
                     disabled={saving || !form.title.trim()}
-                    className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-emerald-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-violet-500/25 transition-opacity hover:opacity-90 disabled:opacity-40"
+                    className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-card transition-colors hover:bg-primary-hover disabled:opacity-40"
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
                     Add
@@ -221,26 +243,26 @@ const Tasks: React.FC = () => {
               </form>
 
               {/* Task list */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg shadow-black/20">
+              <div className="rounded-2xl border border-border bg-white p-5 shadow-card">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Your Tasks</h3>
-                  <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-slate-400">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted">Your Tasks</h3>
+                  <span className="rounded-full bg-tag-bg px-2.5 py-0.5 text-xs font-semibold text-muted">
                     {summary.total} total
                   </span>
                 </div>
 
                 {loading ? (
                   <div className="flex flex-col items-center justify-center gap-3 py-14">
-                    <Loader2 size={28} className="animate-spin text-emerald-400" />
-                    <p className="text-sm text-slate-400">Loading tasks...</p>
+                    <Loader2 size={28} className="animate-spin text-primary" />
+                    <p className="text-sm text-muted">Loading tasks...</p>
                   </div>
                 ) : sortedTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-slate-500">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                       <Inbox size={26} />
                     </div>
-                    <p className="mt-2 font-semibold text-slate-300">No tasks yet</p>
-                    <p className="max-w-sm text-sm text-slate-500">
+                    <p className="mt-2 font-semibold text-foreground">No tasks yet</p>
+                    <p className="max-w-sm text-sm text-muted">
                       Add a task above to get started. The AI Task Planner will help you stay on schedule.
                     </p>
                   </div>
@@ -251,10 +273,10 @@ const Tasks: React.FC = () => {
                       return (
                         <li
                           key={task.id}
-                          className={`group flex items-center gap-3 rounded-xl border p-3 transition-colors ${
+                          className={`group flex items-center gap-3 rounded-xl border p-3 shadow-card transition-colors ${
                             overdue
-                              ? 'border-rose-500/40 bg-rose-500/5'
-                              : 'border-slate-800 bg-slate-950/60 hover:border-slate-700'
+                              ? 'border-rose-300 bg-rose-50'
+                              : 'border-border bg-white hover:border-primary-soft'
                           }`}
                         >
                           <button
@@ -263,7 +285,7 @@ const Tasks: React.FC = () => {
                             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-all disabled:opacity-50 ${
                               task.status === 'COMPLETED'
                                 ? 'border-emerald-500 bg-emerald-500 text-white'
-                                : 'border-slate-600 text-transparent hover:border-emerald-500'
+                                : 'border-gray-300 text-transparent hover:border-emerald-500'
                             }`}
                             aria-label={task.status === 'COMPLETED' ? 'Mark as pending' : 'Mark as completed'}
                           >
@@ -274,14 +296,24 @@ const Tasks: React.FC = () => {
                             )}
                           </button>
                           <div className="min-w-0 flex-1">
-                            <p
-                              className={`truncate text-sm font-medium ${
-                                task.status === 'COMPLETED' ? 'text-slate-500 line-through' : 'text-slate-100'
-                              }`}
-                            >
-                              {task.title}
-                            </p>
-                            <p className={`text-xs ${overdue ? 'font-semibold text-rose-400' : 'text-slate-500'}`}>
+                            <div className="flex items-center gap-2">
+                              <p
+                                className={`truncate text-sm font-medium ${
+                                  task.status === 'COMPLETED' ? 'text-muted line-through' : 'text-foreground'
+                                }`}
+                              >
+                                {task.title}
+                              </p>
+                              {task.parentTaskId && (
+                                <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">chunk</span>
+                              )}
+                              {task.status !== 'PENDING' && task.status !== 'COMPLETED' && (
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${statusTextClass(task.status)}`}>
+                                  {statusLabel(task.status)}
+                                </span>
+                              )}
+                            </div>
+                            <p className={`text-xs ${overdue ? 'font-semibold text-rose-600' : 'text-muted'}`}>
                               {task.deadline
                                 ? new Date(task.deadline).toLocaleDateString('en-US', {
                                     weekday: 'short',
@@ -293,9 +325,16 @@ const Tasks: React.FC = () => {
                             </p>
                           </div>
                           <button
+                            onClick={() => askAssistantFor(task)}
+                            title={`Ask the AI assistant about "${task.title}"`}
+                            className="shrink-0 rounded-lg p-2 text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Bot size={16} />
+                          </button>
+                          <button
                             onClick={() => handleDelete(task.id, task.status)}
                             disabled={deletingId === task.id}
-                            className="shrink-0 rounded-lg p-2 text-slate-500 transition-colors hover:bg-rose-500/10 hover:text-rose-400 disabled:opacity-50"
+                            className="shrink-0 rounded-lg p-2 text-muted transition-colors hover:bg-error/10 hover:text-error disabled:opacity-50"
                             aria-label="Delete task"
                           >
                             {deletingId === task.id ? (
@@ -313,12 +352,12 @@ const Tasks: React.FC = () => {
             </div>
 
             {/* Calendar */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg shadow-black/20">
+            <div className="rounded-2xl border border-border bg-white p-5 shadow-card">
               <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Calendar</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted">Calendar</h3>
                 <button
                   onClick={() => setSelectedDate(new Date())}
-                  className="text-xs font-semibold text-emerald-400 hover:bg-slate-800 px-3 py-1.5 rounded-full transition-colors"
+                  className="text-xs font-semibold text-emerald-600 hover:bg-emerald-50 px-3 py-1.5 rounded-full transition-colors"
                 >
                   Today
                 </button>
@@ -338,7 +377,7 @@ const Tasks: React.FC = () => {
                   prev2Label={null}
                   next2Label={null}
                   tileContent={({ date }) => {
-                    const key = date.toISOString().slice(0, 10);
+                    const key = toDayKey(date);
                     const dayTasks = tasksByDate.get(key);
                     if (!dayTasks || dayTasks.length === 0) return null;
                     const overdueCount = dayTasks.filter((t) => t.status === 'PENDING' && !!t.deadline && new Date(t.deadline) < new Date()).length;
@@ -357,34 +396,32 @@ const Tasks: React.FC = () => {
                 />
               </div>
 
-              <div className="mt-4 border-t border-slate-800 pt-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+              <div className="mt-4 border-t border-border pt-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
                   {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                 </p>
                 {sortedSelected.length === 0 ? (
-                  <p className="py-2 text-sm text-slate-500">No tasks on this day.</p>
+                  <p className="py-2 text-sm text-muted">No tasks on this day.</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {sortedSelected.map((task) => (
                       <li
                         key={task.id}
                         className={`flex items-center justify-between rounded-xl border px-3 py-2 ${
-                          task.status === 'COMPLETED' ? 'border-slate-800 opacity-60' : 'border-slate-800'
+                          task.status === 'COMPLETED' ? 'border-border opacity-60' : 'border-border'
                         }`}
                       >
                         <span
                           className={`min-w-0 truncate text-sm font-medium ${
-                            task.status === 'COMPLETED' ? 'text-slate-500 line-through' : 'text-slate-200'
+                            task.status === 'COMPLETED' ? 'text-muted line-through' : 'text-foreground'
                           }`}
                         >
                           {task.title}
                         </span>
                         <span
-                          className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                            task.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'
-                          }`}
+                          className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${statusTextClass(task.status)}`}
                         >
-                          {task.status === 'COMPLETED' ? 'Done' : 'Pending'}
+                          {statusLabel(task.status)}
                         </span>
                       </li>
                     ))}

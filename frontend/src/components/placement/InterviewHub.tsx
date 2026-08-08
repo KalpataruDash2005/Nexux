@@ -94,8 +94,8 @@ const InterviewHub: React.FC<PlacementNavProps & {
           setActiveChat(null);
           loadSessions();
         }}
-        onSessionUpdated={() => {
-          setSessions((prev) => prev.map((s) => (s.id === activeChat ? { ...s, status: 'COMPLETED' } : s)));
+        onSessionUpdated={(updated) => {
+          setSessions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
         }}
       />
     );
@@ -110,11 +110,11 @@ const InterviewHub: React.FC<PlacementNavProps & {
         <SectionTitle icon={<MessageSquare size={16} />} title="New Interview" subtitle="Launch an AI-powered mock interview" />
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Interview type</label>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Interview type</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as SessionType)}
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500/50"
+              className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary"
             >
               {INTERVIEW_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -123,7 +123,7 @@ const InterviewHub: React.FC<PlacementNavProps & {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Mode</label>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Mode</label>
             <div className="grid grid-cols-2 gap-2">
               {(['AI', 'RESUME'] as const).map((m) => (
                 <button
@@ -131,8 +131,8 @@ const InterviewHub: React.FC<PlacementNavProps & {
                   onClick={() => setMode(m)}
                   className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
                     mode === m
-                      ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
-                      : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                      ? 'border-primary-soft bg-primary-soft text-primary'
+                      : 'border-border text-muted hover:border-primary-soft'
                   }`}
                 >
                   {m === 'AI' ? 'AI only' : 'Resume-based'}
@@ -142,33 +142,33 @@ const InterviewHub: React.FC<PlacementNavProps & {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Target role</label>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Target role</label>
             <div className="relative">
-              <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
+              <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 placeholder="e.g. Software Engineer, Product Manager"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-9 pr-3 text-sm text-slate-100 placeholder-slate-600 outline-none focus:border-emerald-500/50"
+                className="w-full rounded-xl border border-border bg-white py-2.5 pl-9 pr-3 text-sm text-foreground placeholder-muted outline-none focus:border-primary"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Company (optional)</label>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Company (optional)</label>
             <div className="relative">
-              <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
+              <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 placeholder="e.g. Google, Infosys"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-9 pr-3 text-sm text-slate-100 placeholder-slate-600 outline-none focus:border-emerald-500/50"
+                className="w-full rounded-xl border border-border bg-white py-2.5 pl-9 pr-3 text-sm text-foreground placeholder-muted outline-none focus:border-primary"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Difficulty</label>
+            <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Difficulty</label>
             <div className="grid grid-cols-3 gap-2">
               {DIFFICULTIES.map((d) => (
                 <button
@@ -176,8 +176,8 @@ const InterviewHub: React.FC<PlacementNavProps & {
                   onClick={() => setDifficulty(d)}
                   className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
                     difficulty === d
-                      ? 'border-violet-500/50 bg-violet-500/10 text-violet-300'
-                      : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                      ? 'border-primary-soft bg-primary-soft text-primary'
+                      : 'border-border text-muted hover:border-primary-soft'
                   }`}
                 >
                   {d.charAt(0) + d.slice(1).toLowerCase()}
@@ -188,11 +188,11 @@ const InterviewHub: React.FC<PlacementNavProps & {
 
           {mode === 'RESUME' && (
             <div className="phq-fade-in">
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Use resume</label>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Use resume</label>
               <select
                 value={resumeId}
                 onChange={(e) => setResumeId(e.target.value)}
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-emerald-500/50"
+                className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary"
               >
                 <option value="">Select a resume…</option>
                 {resumes.map((r) => (
@@ -200,13 +200,13 @@ const InterviewHub: React.FC<PlacementNavProps & {
                 ))}
               </select>
               {resumes.length === 0 && (
-                <p className="mt-1.5 text-xs text-slate-500">No saved resumes found — analyze one in the Resume tab.</p>
+                <p className="mt-1.5 text-xs text-muted">No saved resumes found — analyze one in the Resume tab.</p>
               )}
             </div>
           )}
 
           {startError && (
-            <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+            <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
               <AlertTriangle size={15} className="mt-0.5 shrink-0" />
               {startError}
             </div>
@@ -215,7 +215,7 @@ const InterviewHub: React.FC<PlacementNavProps & {
           <button
             onClick={handleStart}
             disabled={starting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/40 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover px-4 py-3 text-sm font-bold text-white shadow-card transition-all hover:shadow-lg disabled:opacity-50"
           >
             {starting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
             {starting ? 'Starting interview...' : 'Start interview'}
@@ -241,14 +241,14 @@ const InterviewHub: React.FC<PlacementNavProps & {
             {interviewSessions.map((s) => (
               <div
                 key={s.id}
-                className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 transition-colors hover:border-slate-700"
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-white p-4 transition-colors hover:border-primary-soft"
               >
                 <TypeBadge type={s.type} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-100">
+                  <p className="truncate text-sm font-semibold text-foreground">
                     {s.role || s.topic || 'Interview'} {s.company ? `@ ${s.company}` : ''}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted">
                     {s.mode} · {formatDate(s.createdAt)} · {s.messageCount ?? 0} messages
                   </p>
                 </div>
@@ -261,7 +261,7 @@ const InterviewHub: React.FC<PlacementNavProps & {
                 )}
                 <button
                   onClick={() => setActiveChat(s.id)}
-                  className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500/10"
+                  className="flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
                 >
                   <Play size={13} />
                   {s.status.toUpperCase() === 'ACTIVE' ? 'Continue' : 'Review'}

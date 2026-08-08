@@ -8,7 +8,9 @@ public record CodingProblem(
         List<Example> examples,
         String constraints,
         String difficulty,
-        List<String> topics
+        List<String> topics,
+        List<CodingTest> testCases
 ) {
     public record Example(String input, String output) {}
+    public record CodingTest(String input, String expectedOutput, boolean hidden) {}
 }

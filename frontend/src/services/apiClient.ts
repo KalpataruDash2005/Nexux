@@ -20,4 +20,24 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Centralized session expiry handling: any 401 clears the session and returns
+// the user to the login page instead of surfacing raw auth errors.
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const isAuthEndpoint = typeof error?.config?.url === 'string'
+      && error.config.url.includes('/auth/');
+    if (status === 401 && !isAuthEndpoint) {
+      const hadSession = !!localStorage.getItem('token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (hadSession) {
+        window.location.href = '/auth';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default apiClient;

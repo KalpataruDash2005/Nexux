@@ -10,6 +10,8 @@ import { resetPlacementActivity } from '../services/placementService';
 import ResumeAnalyzer from '../components/placement/ResumeAnalyzer';
 import InterviewHub from '../components/placement/InterviewHub';
 import CodingPractice from '../components/placement/CodingPractice';
+import { useToast } from '../components/ui/Toast';
+import { useConfirm } from '../components/ui/Confirm';
 import AptitudeTest from '../components/placement/AptitudeTest';
 import AnalyticsView from '../components/placement/AnalyticsView';
 import ReadinessView from '../components/placement/ReadinessView';
@@ -46,6 +48,8 @@ const Placement: React.FC = () => {
   const [openSessionId, setOpenSessionId] = useState<string | null>(initialSession);
   const [resetting, setResetting] = useState(false);
   const [resetMsg, setResetMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
 
   const handleNavigate = (next: PlacementView, sessionId?: string) => {
     setView(next);
@@ -54,13 +58,14 @@ const Placement: React.FC = () => {
   };
 
   const handleReset = async () => {
-    if (
-      !window.confirm(
-        'Reset ALL placement activity?\n\nThis permanently deletes your uploaded resumes, analyses, mock interviews, coding sessions, aptitude tests, and all placement stats. This cannot be undone.'
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Reset ALL placement activity',
+      message:
+        'This permanently deletes your uploaded resumes, analyses, mock interviews, coding sessions, aptitude tests, and all placement stats. This cannot be undone.',
+      confirmText: 'Reset everything',
+      danger: true,
+    });
+    if (!ok) return;
     setResetting(true);
     setResetMsg(null);
     try {
@@ -69,11 +74,13 @@ const Placement: React.FC = () => {
         text: `Reset complete — ${result.deletedSessions} session(s) and ${result.deletedResumes} resume(s) removed. Your placement dashboard is now clean.`,
         ok: true,
       });
+      toast('Placement activity has been reset', 'success');
       setView('resume');
       setOpenSessionId(null);
       setMobileOpen(false);
     } catch (err) {
       setResetMsg({ text: err instanceof Error ? err.message : 'Reset failed. Please try again.', ok: false });
+      toast(err instanceof Error ? err.message : 'Reset failed. Please try again.', 'error');
     } finally {
       setResetting(false);
     }
@@ -103,20 +110,22 @@ const Placement: React.FC = () => {
         return <RoadmapView />;
       case 'sessions':
         return <SessionsView onNavigate={handleNavigate} />;
+      default:
+        return <ResumeAnalyzer />;
     }
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
       {/* Nav */}
-      <header className="z-20 shrink-0 border-b border-slate-800 bg-slate-950">
+      <header className="z-20 shrink-0 border-b border-border bg-background">
         <div className="flex h-16 items-center justify-between gap-4 px-4 md:px-6">
           <div className="flex shrink-0 items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-emerald-500 text-white shadow-lg shadow-violet-500/30">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-card">
               <Rocket size={18} />
             </div>
             <div className="leading-tight">
-              <p className="font-extrabold tracking-tight text-slate-100">Features</p>
+              <p className="font-extrabold tracking-tight text-foreground">Features</p>
             </div>
           </div>
 
@@ -127,14 +136,14 @@ const Placement: React.FC = () => {
                 onClick={() => handleNavigate(n.view)}
                 className={`relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
                   view === n.view
-                    ? 'bg-slate-800/80 text-emerald-300'
-                    : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+                    ? 'bg-primary-soft text-primary'
+                    : 'text-muted hover:bg-tag-bg hover:text-foreground'
                 }`}
               >
                 <n.icon size={15} />
                 {n.label}
                 {view === n.view && (
-                  <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400" />
+                  <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
                 )}
               </button>
             ))}
@@ -144,7 +153,7 @@ const Placement: React.FC = () => {
             onClick={handleReset}
             disabled={resetting}
             title="Reset all placement activity"
-            className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-rose-400 transition-all hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-50"
+            className="flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-rose-600 transition-all hover:bg-rose-100 hover:text-rose-700 disabled:opacity-50"
           >
             <RotateCcw size={15} className={resetting ? 'animate-spin' : ''} />
             <span className="hidden sm:inline">{resetting ? 'Resetting...' : 'Reset'}</span>
@@ -152,7 +161,7 @@ const Placement: React.FC = () => {
 
           <button
             onClick={() => setMobileOpen((o) => !o)}
-            className="rounded-lg p-2 text-slate-300 transition-colors hover:bg-slate-800 lg:hidden"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-tag-bg lg:hidden"
             aria-label="Toggle menu"
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -160,7 +169,7 @@ const Placement: React.FC = () => {
         </div>
 
         {mobileOpen && (
-          <div className="border-t border-slate-800 px-4 py-3 lg:hidden">
+          <div className="border-t border-border px-4 py-3 lg:hidden">
             <div className="grid grid-cols-3 gap-2">
               {NAV.map((n) => (
                 <button
@@ -168,8 +177,8 @@ const Placement: React.FC = () => {
                   onClick={() => handleNavigate(n.view)}
                   className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-xs font-semibold transition-all ${
                     view === n.view
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                      : 'border-slate-800 text-slate-400 hover:border-slate-700'
+                      ? 'border-primary-soft bg-primary-soft text-primary'
+                      : 'border-border text-muted hover:border-border'
                   }`}
                 >
                   <n.icon size={17} />
@@ -188,8 +197,8 @@ const Placement: React.FC = () => {
             <div
               className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
                 resetMsg.ok
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                  : 'border-rose-500/30 bg-rose-500/10 text-rose-300'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-rose-200 bg-rose-50 text-rose-700'
               }`}
             >
               <span>{resetMsg.text}</span>

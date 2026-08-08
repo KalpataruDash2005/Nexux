@@ -7,15 +7,25 @@ const OAuth2Callback: React.FC = () => {
     const location = useLocation();
     const { login } = useAuth();
 
+    const parseJwt = (token: string): any => {
+        try {
+            const raw = (token.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/');
+            const padded = raw + '='.repeat((4 - (raw.length % 4)) % 4);
+            return JSON.parse(atob(padded));
+        } catch {
+            return null;
+        }
+    };
+
     useEffect(() => {
         const queryParams = new URLSearchParams(location.search);
         const token = queryParams.get('token');
         const error = queryParams.get('error');
 
         if (token) {
-            login(token, { email: 'oauth-user', role: 'STUDENT' });
-            // Ideally we'd decode JWT to check if it's a new user and send to onboarding, 
-            // but we'll default to dashboard for now.
+            const claims = parseJwt(token);
+            const email = claims?.sub && claims.sub !== 'oauth-user' ? claims.sub : 'student';
+            login(token, { email, role: 'STUDENT' });
             navigate('/dashboard');
         } else if (error) {
             console.error('OAuth2 Error:', error);
@@ -26,10 +36,10 @@ const OAuth2Callback: React.FC = () => {
     }, [location, navigate]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#030303] text-[#F4F5F8]">
+        <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
             <div className="flex flex-col items-center">
-                <div className="w-8 h-8 border-4 border-[#3E7BFF] border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-[#8E93A0]">Completing sign in...</p>
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-muted">Completing sign in...</p>
             </div>
         </div>
     );

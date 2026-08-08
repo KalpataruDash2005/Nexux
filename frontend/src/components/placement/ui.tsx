@@ -9,14 +9,14 @@ export interface PlacementNavProps {
 export type PillTone = 'emerald' | 'rose' | 'amber' | 'violet' | 'teal' | 'slate' | 'sky' | 'cyan';
 
 export const PILL_TONES: Record<PillTone, string> = {
-  emerald: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
-  rose: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
-  amber: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
-  violet: 'bg-violet-500/10 text-violet-300 border-violet-500/30',
-  teal: 'bg-teal-500/10 text-teal-300 border-teal-500/30',
-  slate: 'bg-slate-700/40 text-slate-300 border-slate-600/60',
-  sky: 'bg-sky-500/10 text-sky-300 border-sky-500/30',
-  cyan: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+  emerald: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  rose: 'bg-rose-100 text-rose-700 border-rose-200',
+  amber: 'bg-amber-100 text-amber-700 border-amber-200',
+  violet: 'bg-violet-100 text-violet-700 border-violet-200',
+  teal: 'bg-teal-100 text-teal-700 border-teal-200',
+  slate: 'bg-tag-bg text-muted border-border',
+  sky: 'bg-sky-100 text-sky-700 border-sky-200',
+  cyan: 'bg-cyan-100 text-cyan-700 border-cyan-200',
 };
 
 export const Card: React.FC<{
@@ -25,8 +25,8 @@ export const Card: React.FC<{
   hover?: boolean;
 }> = ({ children, className = '', hover = false }) => (
   <div
-    className={`rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg shadow-black/20 ${
-      hover ? 'transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-700 hover:shadow-xl hover:shadow-black/30' : ''
+    className={`rounded-2xl border border-border bg-white p-5 shadow-card ${
+      hover ? 'transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-soft hover:shadow-lg' : ''
     } ${className}`}
   >
     {children}
@@ -40,19 +40,19 @@ export const StatChip: React.FC<{
   accent?: boolean;
 }> = ({ icon, label, value, accent = false }) => (
   <div
-    className={`rounded-2xl border px-4 py-3.5 backdrop-blur-md transition-all duration-300 ${
+    className={`rounded-2xl border px-4 py-3.5 transition-all duration-300 ${
       accent
-        ? 'border-amber-500/30 bg-amber-500/10 ring-1 ring-amber-400/30'
-        : 'border-slate-700/60 bg-slate-900/70 hover:border-slate-600'
+        ? 'border-amber-200 bg-amber-50 ring-1 ring-amber-300'
+        : 'border-border bg-white hover:border-primary-soft'
     }`}
   >
-    <div className="flex items-center gap-2 text-slate-400">
-      <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${accent ? 'bg-amber-400/20 text-amber-300' : 'bg-slate-800 text-emerald-400'}`}>
+    <div className="flex items-center gap-2 text-muted">
+      <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${accent ? 'bg-amber-100 text-amber-700' : 'bg-tag-bg text-primary'}`}>
         {icon}
       </div>
       <span className="text-[11px] font-bold uppercase tracking-wider">{label}</span>
     </div>
-    <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-100">{value}</p>
+    <p className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">{value}</p>
   </div>
 );
 
@@ -64,7 +64,7 @@ export const Pill: React.FC<{
 }> = ({ children, tone = 'slate', outline = false, className = '' }) => (
   <span
     className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold ${
-      outline ? 'border-rose-500/40 text-rose-300' : PILL_TONES[tone]
+      outline ? 'border-rose-200 text-rose-600' : PILL_TONES[tone]
     } ${className}`}
   >
     {children}
@@ -80,13 +80,13 @@ export const SectionTitle: React.FC<{
   <div className="mb-5 flex items-center justify-between gap-4">
     <div className="flex items-center gap-3">
       {icon && (
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-emerald-500/20 text-emerald-400 ring-1 ring-violet-500/20">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-tint text-primary ring-1 ring-primary-soft">
           {icon}
         </div>
       )}
       <div>
-        <h2 className="text-lg font-bold text-slate-100">{title}</h2>
-        {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+        <h2 className="text-lg font-bold text-foreground">{title}</h2>
+        {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
       </div>
     </div>
     {right}
@@ -95,22 +95,22 @@ export const SectionTitle: React.FC<{
 
 export const LoadingSpinner: React.FC<{ label?: string; className?: string }> = ({ label, className = '' }) => (
   <div className={`flex flex-col items-center justify-center gap-3 py-16 ${className}`}>
-    <Loader2 size={32} className="animate-spin text-emerald-400" />
-    {label && <p className="text-sm font-medium text-slate-400">{label}</p>}
+    <Loader2 size={32} className="animate-spin text-primary" />
+    {label && <p className="text-sm font-medium text-muted">{label}</p>}
   </div>
 );
 
 export const ErrorBanner: React.FC<{ message: string; onRetry?: () => void }> = ({ message, onRetry }) => (
-  <div className="flex items-start gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4">
-    <AlertTriangle size={20} className="mt-0.5 shrink-0 text-rose-400" />
+  <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4">
+    <AlertTriangle size={20} className="mt-0.5 shrink-0 text-error" />
     <div className="flex-1">
-      <p className="text-sm font-semibold text-rose-200">Something went wrong</p>
-      <p className="mt-0.5 text-sm text-rose-300/80">{message}</p>
+      <p className="text-sm font-semibold text-rose-700">Something went wrong</p>
+      <p className="mt-0.5 text-sm text-rose-600">{message}</p>
     </div>
     {onRetry && (
       <button
         onClick={onRetry}
-        className="shrink-0 rounded-lg border border-rose-400/40 px-3 py-1.5 text-xs font-bold text-rose-200 transition-colors hover:bg-rose-500/20"
+        className="shrink-0 rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-bold text-rose-600 transition-colors hover:bg-rose-100"
       >
         Retry
       </button>
@@ -120,11 +120,11 @@ export const ErrorBanner: React.FC<{ message: string; onRetry?: () => void }> = 
 
 export const EmptyState: React.FC<{ icon?: React.ReactNode; title: string; subtitle?: string }> = ({ icon, title, subtitle }) => (
   <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
-    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-slate-500">
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tag-bg text-muted">
       {icon ?? <Inbox size={26} />}
     </div>
-    <p className="mt-2 font-semibold text-slate-300">{title}</p>
-    {subtitle && <p className="max-w-sm text-sm text-slate-500">{subtitle}</p>}
+    <p className="mt-2 font-semibold text-foreground">{title}</p>
+    {subtitle && <p className="max-w-sm text-sm text-muted">{subtitle}</p>}
   </div>
 );
 
@@ -147,8 +147,8 @@ export const Ring: React.FC<{
       <svg width={size} height={size} className="-rotate-90">
         <defs>
           <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#34d399" />
-            <stop offset="100%" stopColor="#22d3ee" />
+            <stop offset="0%" stopColor="#444CE7" />
+            <stop offset="100%" stopColor="#818cf8" />
           </linearGradient>
         </defs>
         <circle
@@ -156,7 +156,7 @@ export const Ring: React.FC<{
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#1e293b"
+          stroke="#e5e7eb"
           strokeWidth={stroke}
         />
         <circle
@@ -173,8 +173,8 @@ export const Ring: React.FC<{
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-extrabold tracking-tight text-slate-100">{label}</span>
-        {sublabel && <span className="mt-1 text-xs font-medium text-slate-400">{sublabel}</span>}
+        <span className="text-3xl font-extrabold tracking-tight text-foreground">{label}</span>
+        {sublabel && <span className="mt-1 text-xs font-medium text-muted">{sublabel}</span>}
       </div>
     </div>
   );
@@ -184,15 +184,15 @@ export const ScoreBar: React.FC<{
   label: string;
   value: number;
   color?: string;
-}> = ({ label, value, color = '#34d399' }) => {
+}> = ({ label, value, color = '#444ce7' }) => {
   const pct = Math.max(0, Math.min(100, value));
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-xs">
-        <span className="font-semibold text-slate-400">{label}</span>
-        <span className="font-bold text-slate-200">{Math.round(pct)}</span>
+        <span className="font-semibold text-muted">{label}</span>
+        <span className="font-bold text-foreground">{Math.round(pct)}</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${pct}%`, backgroundColor: color }}

@@ -1,0 +1,10 @@
+target/
+apache-maven-*/
+storage/
+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*/
+.idea/
+*.iml
+*.log
+start-*.cmd
+
+run.cmd

@@ -3,8 +3,23 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-brand: #444ce7;
+    --color-brand-hover: #3a42d8;
+    --color-brand-soft: #c7d2fe;
+    --color-brand-bg: #e0e7ff;
+    --color-background: #f9fafb;
+    --color-surface: #ffffff;
+    --color-surface-tint: #eef2ff;
+    --color-foreground: #111827;
+    --color-muted: #6b7280;
+    --color-border: #e5e7eb;
+    --color-danger: #dc2626;
+    --color-tag-bg: #f3f4f6;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
 }
 
@@ -60,6 +75,11 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 
 /* Dark Theme Calendar Styles */
 .dark-calendar {
@@ -97,9 +117,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(17, 24, 39, 0.12);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(17, 24, 39, 0.25);
 }

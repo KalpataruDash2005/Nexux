@@ -5,10 +5,10 @@ spring:
       max-request-size: 50MB
 
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:careeros_db}?useSSL=true&serverTimezone=UTC
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:careeros_db}?sslmode=require
     username: ${DB_USER}
     password: ${DB_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: validate
@@ -16,17 +16,18 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: false
+    locations: classpath:db/migration-pg
   mail:
-    host: ${MAIL_HOST:}
-    port: ${MAIL_PORT:1025}
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:}
     password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${MAIL_SMTP_AUTH:true}
           starttls:
-            enable: false
+            enable: ${MAIL_SMTP_STARTTLS:true}
   security:
     oauth2:
       client:
@@ -35,26 +36,31 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID:change-me.apps.googleusercontent.com}
             client-secret: ${GOOGLE_CLIENT_SECRET:change-me-oauth-client-secret}
             scope: email, profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/google"
 
 app:
+  oauth:
+    cookie-secret: ${OAUTH_COOKIE_SECRET}
+    cookie-secure: true
+  frontend-url: ${FRONTEND_URL}
   jwt:
-    secret: ${JWT_SECRET:}
+    secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
   qdrant:
-    host: ${QDRANT_HOST:localhost}
+    host: ${QDRANT_HOST}
     port: ${QDRANT_PORT:6334}
   openai:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.groq.com/openai/v1}
     model: ${OPENAI_MODEL:llama-3.1-8b-instant}
   pdf-assistant:
-    n8n-enabled: ${PDF_ASSISTANT_N8N_ENABLED:true}
-    n8n-webhook-url: ${N8N_WEBHOOK_URL:http://localhost:5678}
+    n8n-enabled: ${PDF_ASSISTANT_N8N_ENABLED:false}
+    n8n-webhook-url: ${N8N_WEBHOOK_URL}
     n8n-api-key: ${N8N_API_KEY:}
-    internal-key: ${PDF_ASSISTANT_INTERNAL_KEY:careeros-pdf-internal}
+    internal-key: ${PDF_ASSISTANT_INTERNAL_KEY}
     storage-dir: ${PDF_ASSISTANT_STORAGE_DIR:./storage/pdf-assistant}
-    qdrant-host: ${QDRANT_HOST:localhost}
+    qdrant-host: ${QDRANT_HOST}
     qdrant-port: ${QDRANT_PORT:6334}
     qdrant-rest-port: ${QDRANT_REST_PORT:6333}
     qdrant-collection: careeros_pdf_chunks
@@ -63,3 +69,8 @@ app:
     chunk-overlap: 100
     top-k: 5
     min-score: 0.30
+
+careeros:
+  admin:
+    email: ${CAREEROS_ADMIN_EMAIL:admin@nexora.app}
+    password: ${CAREEROS_ADMIN_PASSWORD}

@@ -13,5 +13,6 @@ public record PlacementSessionDto(
         int messageCount,
         String createdAt,
         String startedAt,
-        String endedAt
+        String endedAt,
+        String summary
 ) {}

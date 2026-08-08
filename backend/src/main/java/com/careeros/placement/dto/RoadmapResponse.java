@@ -11,7 +11,8 @@ public record RoadmapResponse(
         List<String> resumeImprovements,
         List<String> codingRecommendations,
         List<String> dsaRevision,
-        List<String> aptitudePractice
+        List<String> aptitudePractice,
+        String generatedAt
 ) {
     public record CompanyPrep(String company, String notes) {}
 

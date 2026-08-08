@@ -6,9 +6,11 @@ import { ApplicationDto } from '../types/application';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import { MapPin, Wallet, CheckCircle2 } from 'lucide-react';
+import { useToast } from '../components/ui/Toast';
 
 const JobBoard: React.FC = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [jobs, setJobs] = useState<JobDto[]>([]);
   const [applications, setApplications] = useState<ApplicationDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,9 +56,10 @@ const JobBoard: React.FC = () => {
       setShowModal(false);
       setNewJob({ title: '', companyName: '', description: '', location: '', salary: '' });
       fetchData();
+      toast('Job created successfully', 'success');
     } catch (err) {
       console.error('Failed to create job', err);
-      alert('Failed to create job.');
+      toast('Failed to create job.', 'error');
     }
   };
 
@@ -64,9 +67,10 @@ const JobBoard: React.FC = () => {
     try {
       const newApp = await applyForJob({ jobId });
       setApplications([...applications, newApp]);
+      toast('Applied successfully', 'success');
     } catch (err) {
       console.error('Failed to apply', err);
-      alert('Failed to apply. You may have already applied.');
+      toast('Failed to apply. You may have already applied.', 'error');
     }
   };
 

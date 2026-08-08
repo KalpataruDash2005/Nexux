@@ -29,6 +29,7 @@ import {
 } from '../../services/pdfAssistantService';
 import Markdown from './Markdown';
 import { useToast } from './Toast';
+import { useConfirm } from '../ui/Confirm';
 import { getWorkspaceById, renameWorkspace, Workspace } from '../../services/workspaceService';
 
 interface PdfAssistantPanelProps {
@@ -62,6 +63,7 @@ const statusBadge: Record<PdfDocument['status'], { label: string; className: str
 
 const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) => {
   const { toast } = useToast();
+  const { confirm } = useConfirm();
   const [documents, setDocuments] = useState<PdfDocument[]>([]);
   const [selected, setSelected] = useState<PdfDocument | null>(null);
   const [messages, setMessages] = useState<PdfChatMessage[]>([]);
@@ -176,7 +178,13 @@ const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) =>
   };
 
   const handleDelete = async (doc: PdfDocument) => {
-    if (!window.confirm(`Delete "${doc.fileName}"? This removes its index and chat history.`)) return;
+    const ok = await confirm({
+      title: 'Delete document',
+      message: `Delete "${doc.fileName}"? This removes its index and chat history.`,
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deletePdfDocument(workspaceId, doc.id);
       toast(`Deleted "${doc.fileName}".`, 'success');

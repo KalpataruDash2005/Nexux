@@ -17,7 +17,15 @@ public interface TaskRepository extends JpaRepository<Task, String> {
 
     Optional<Task> findByIdAndUserId(String id, String userId);
 
+    List<Task> findByParentTaskIdOrderByDeadlineAscCreatedAtAsc(String parentTaskId);
+
     long countByUserId(String userId);
 
     long countByUserIdAndStatus(String userId, String status);
+
+    List<Task> findTop10ByUserIdOrderByDeadlineAscCreatedAtAsc(String userId);
+
+    List<Task> findByUserIdAndStatusAndDeadlineGreaterThanOrderByDeadlineAsc(String userId, String status, LocalDateTime from);
+
+    List<Task> findByUserIdAndDeadlineIsNotNullAndDeadlineBetweenOrderByDeadlineAsc(String userId, LocalDateTime from, LocalDateTime to);
 }

@@ -8,10 +8,10 @@ import { getAnalytics, AnalyticsData } from '../../services/placementService';
 import { Card, StatChip, SectionTitle, Pill, LoadingSpinner, ErrorBanner, useAsync } from './ui';
 
 const tooltipStyle = {
-  backgroundColor: '#0f172a',
-  border: '1px solid #1e293b',
+  backgroundColor: '#ffffff',
+  border: '1px solid #e5e7eb',
   borderRadius: 12,
-  color: '#e2e8f0',
+  color: '#111827',
   fontSize: 12,
 };
 
@@ -47,8 +47,8 @@ const AnalyticsView: React.FC = () => {
   return (
     <div className="phq-fade-in space-y-6">
       <div>
-        <h2 className="text-2xl font-extrabold tracking-tight text-slate-100">Performance Analytics</h2>
-        <p className="mt-1 text-sm text-slate-400">Track your growth across every placement dimension.</p>
+        <h2 className="text-2xl font-extrabold tracking-tight text-foreground">Performance Analytics</h2>
+        <p className="mt-1 text-sm text-muted">Track your growth across every placement dimension.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -68,11 +68,11 @@ const AnalyticsView: React.FC = () => {
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="72%">
-                <PolarGrid stroke="#334155" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#475569', fontSize: 10 }} />
+                <PolarGrid stroke="#e5e7eb" />
+                <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 11 }} />
+                <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#9ca3af', fontSize: 10 }} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Radar dataKey="value" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.25} />
+                <Radar dataKey="value" stroke="#444ce7" fill="#444ce7" fillOpacity={0.15} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
@@ -84,13 +84,13 @@ const AnalyticsView: React.FC = () => {
             title="Score Trend"
             subtitle="Daily, weekly or monthly"
             right={
-              <div className="flex gap-1 rounded-lg border border-slate-800 bg-slate-950 p-1">
+              <div className="flex gap-1 rounded-lg border border-border bg-tag-bg p-1">
                 {(['daily', 'weekly', 'monthly'] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setRange(r)}
                     className={`rounded-md px-3 py-1 text-xs font-bold capitalize transition-colors ${
-                      range === r ? 'bg-emerald-500/15 text-emerald-300' : 'text-slate-500 hover:text-slate-300'
+                      range === r ? 'bg-primary-soft text-primary' : 'text-muted hover:text-foreground'
                     }`}
                   >
                     {r}
@@ -103,10 +103,10 @@ const AnalyticsView: React.FC = () => {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={rangeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="date" stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} />
-                  <YAxis stroke="#475569" tick={{ fill: '#64748b', fontSize: 11 }} domain={[0, 100]} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(148,163,184,0.06)' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="date" stroke="#e5e7eb" tick={{ fill: '#6b7280', fontSize: 11 }} />
+                  <YAxis stroke="#e5e7eb" tick={{ fill: '#6b7280', fontSize: 11 }} domain={[0, 100]} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(68,76,231,0.06)' }} />
                   <Bar dataKey="score" radius={[6, 6, 0, 0]}>
                     {rangeData.map((d, i) => (
                       <Cell key={i} fill={barColor(d.score)} />
@@ -116,7 +116,7 @@ const AnalyticsView: React.FC = () => {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="py-16 text-center text-sm text-slate-500">No trend data available yet.</p>
+            <p className="py-16 text-center text-sm text-muted">No trend data available yet.</p>
           )}
         </Card>
       </div>
@@ -134,7 +134,7 @@ const AnalyticsView: React.FC = () => {
             {data.strongTopics.length > 0 ? (
               data.strongTopics.map((t) => <Pill key={t} tone="emerald">{t}</Pill>)
             ) : (
-              <p className="text-sm text-slate-500">No strong topics identified yet.</p>
+              <p className="text-sm text-muted">No strong topics identified yet.</p>
             )}
           </div>
         </Card>
@@ -144,7 +144,7 @@ const AnalyticsView: React.FC = () => {
             {data.weakTopics.length > 0 ? (
               data.weakTopics.map((t) => <Pill key={t} tone="rose">{t}</Pill>)
             ) : (
-              <p className="text-sm text-slate-500">No weak topics identified — impressive!</p>
+              <p className="text-sm text-muted">No weak topics identified — impressive!</p>
             )}
           </div>
         </Card>

@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -32,8 +33,42 @@ public class Task {
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
+    @Column(name = "progress_notes", columnDefinition = "TEXT")
+    private String progressNotes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_task_id")
+    private Task parentTask;
+
     @Column(name = "deadline")
     private LocalDateTime deadline;
+
+    @Column(name = "estimated_hours", precision = 5, scale = 2)
+    private BigDecimal estimatedHours;
+
+    @Column(name = "remaining_hours", precision = 5, scale = 2)
+    private BigDecimal remainingHours;
+
+    @Column(name = "chunk_index")
+    private Integer chunkIndex;
+
+    @Column(name = "total_chunks")
+    private Integer totalChunks;
+
+    @Column(name = "ai_generated", nullable = false)
+    private boolean aiGenerated;
+
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "paused_at")
+    private LocalDateTime pausedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "last_activity")
+    private LocalDateTime lastActivity;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

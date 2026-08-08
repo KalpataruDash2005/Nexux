@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getApplicationsForJob, updateApplicationStatus } from '../services/applicationService';
 import { ApplicationDetailsDto } from '../types/application';
+import { useToast } from '../components/ui/Toast';
 
 const JobApplications: React.FC = () => {
   const { jobId } = useParams<{ jobId: string }>();
   const [applications, setApplications] = useState<ApplicationDetailsDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (jobId) {
@@ -31,7 +33,7 @@ const JobApplications: React.FC = () => {
       setApplications(apps => apps.map(app => (app.id === appId ? updatedApp : app)));
     } catch (err) {
       console.error('Failed to update status', err);
-      alert('Failed to update status.');
+      toast('Failed to update status.', 'error');
     }
   };
 

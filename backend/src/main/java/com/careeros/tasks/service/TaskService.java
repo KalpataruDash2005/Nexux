@@ -23,6 +23,10 @@ public class TaskService {
 
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_COMPLETED = "COMPLETED";
+    private static final String STATUS_PAUSED = "PAUSED";
+    private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
+    private static final java.util.Set<String> VALID_STATUSES =
+            java.util.Set.of(STATUS_PENDING, STATUS_COMPLETED, STATUS_PAUSED, STATUS_IN_PROGRESS);
 
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
@@ -155,7 +159,7 @@ public class TaskService {
 
     private String normalizeStatus(String status) {
         String s = status.trim().toUpperCase();
-        if (!STATUS_PENDING.equals(s) && !STATUS_COMPLETED.equals(s)) {
+        if (!VALID_STATUSES.contains(s)) {
             throw new BadRequestException("Invalid task status: " + status);
         }
         return s;
@@ -185,8 +189,19 @@ public class TaskService {
                 task.getId(),
                 task.getTitle(),
                 task.getStatus(),
+                task.getProgressNotes(),
+                task.getParentTask() == null ? null : task.getParentTask().getId(),
                 task.getDeadline() == null ? null : task.getDeadline().toString(),
-                task.getCreatedAt() == null ? null : task.getCreatedAt().toString()
+                task.getCreatedAt() == null ? null : task.getCreatedAt().toString(),
+                task.getEstimatedHours() == null ? null : task.getEstimatedHours().toPlainString(),
+                task.getRemainingHours() == null ? null : task.getRemainingHours().toPlainString(),
+                task.getChunkIndex(),
+                task.getTotalChunks(),
+                task.isAiGenerated(),
+                task.getStartedAt() == null ? null : task.getStartedAt().toString(),
+                task.getPausedAt() == null ? null : task.getPausedAt().toString(),
+                task.getCompletedAt() == null ? null : task.getCompletedAt().toString(),
+                task.getLastActivity() == null ? null : task.getLastActivity().toString()
         );
     }
 }

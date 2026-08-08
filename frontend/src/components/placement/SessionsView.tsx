@@ -7,24 +7,25 @@ import {
   Card, SectionTitle, TypeBadge, DifficultyChip, Pill, LoadingSpinner, ErrorBanner,
   EmptyState, Ring, ScoreBar, formatDate, formatDateTime, PlacementNavProps,
 } from './ui';
+import { useToast } from '../ui/Toast';
 
 const SessionModal: React.FC<{ detail: SessionDetail; onClose: () => void }> = ({ detail, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
     <div
-      className="phq-fade-in phq-scrollbar flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+      className="phq-fade-in phq-scrollbar flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div className="flex items-center gap-3">
           <TypeBadge type={detail.session.type} />
           <div>
-            <p className="text-sm font-bold text-slate-100">
+            <p className="text-sm font-bold text-foreground">
               {detail.session.role || detail.session.topic || 'Session'}
             </p>
-            <p className="text-xs text-slate-500">{formatDateTime(detail.session.createdAt)}</p>
+            <p className="text-xs text-muted">{formatDateTime(detail.session.createdAt)}</p>
           </div>
         </div>
-        <button onClick={onClose} className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800" aria-label="Close">
+        <button onClick={onClose} className="rounded-lg p-2 text-muted transition-colors hover:bg-tag-bg" aria-label="Close">
           <X size={18} />
         </button>
       </div>
@@ -36,11 +37,11 @@ const SessionModal: React.FC<{ detail: SessionDetail; onClose: () => void }> = (
           detail.messages.map((m) => (
             <div key={m.id} className="space-y-2">
               <div className={`flex items-start gap-3 ${m.role.toLowerCase() === 'user' ? 'justify-end' : ''}`}>
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-slate-400">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-tag-bg text-xs font-bold text-muted">
                   {m.role.toLowerCase() === 'user' ? 'You' : 'AI'}
                 </div>
-                <div className="max-w-[85%] rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3">
-                  <p className="whitespace-pre-wrap text-sm text-slate-200">{m.content}</p>
+                <div className="max-w-[85%] rounded-2xl border border-border bg-tag-bg px-4 py-3">
+                  <p className="whitespace-pre-wrap text-sm text-foreground">{m.content}</p>
                 </div>
               </div>
               {m.analysis && <InlineAnalysis feedback={m.analysis} />}
@@ -53,14 +54,14 @@ const SessionModal: React.FC<{ detail: SessionDetail; onClose: () => void }> = (
 );
 
 const InlineAnalysis: React.FC<{ feedback: InterviewFeedback }> = ({ feedback }) => (
-  <div className="ml-10 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
+  <div className="ml-10 rounded-xl border border-primary-soft bg-primary-tint p-3">
     <div className="flex items-center gap-3">
-      <Ring value={feedback.score} size={48} stroke={5} gradientId="sessRing" label={`${Math.round(feedback.score)}`} />
+      <Ring value={feedback.score ?? 0} size={48} stroke={5} gradientId="sessRing" label={`${Math.round(feedback.score ?? 0)}`} />
       <div className="grid flex-1 grid-cols-2 gap-x-4 gap-y-1">
-        <ScoreBar label="Confidence" value={feedback.scores.confidence} />
-        <ScoreBar label="Communication" value={feedback.scores.communication} />
-        <ScoreBar label="Grammar" value={feedback.scores.grammar} />
-        <ScoreBar label="Technical" value={feedback.scores.technicalAccuracy} />
+        <ScoreBar label="Confidence" value={feedback.scores?.confidence ?? 0} />
+        <ScoreBar label="Communication" value={feedback.scores?.communication ?? 0} />
+        <ScoreBar label="Grammar" value={feedback.scores?.grammar ?? 0} />
+        <ScoreBar label="Technical" value={feedback.scores?.technicalAccuracy ?? 0} />
       </div>
     </div>
   </div>
@@ -72,6 +73,7 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const { toast } = useToast();
 
   const load = async () => {
     setLoading(true);
@@ -94,16 +96,14 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
     try {
       setDetail(await getSession(id));
     } catch (err) {
-      window.alert((err as Error).message);
+      toast((err as Error).message, 'error');
     } finally {
       setDetailLoading(false);
     }
   };
 
   const handleContinue = (s: PlacementSession) => {
-    if (s.type === 'CODING') onNavigate('coding');
-    else if (s.type === 'APTITUDE') onNavigate('aptitude');
-    else onNavigate('interview', s.id);
+    onNavigate('interview', s.id);
   };
 
   const active = sessions.filter((s) => s.status.toUpperCase() === 'ACTIVE');
@@ -112,14 +112,14 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
   const renderRow = (s: PlacementSession) => (
     <div
       key={s.id}
-      className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 p-4 transition-colors hover:border-slate-700"
+      className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-white p-4 transition-colors hover:border-primary-soft"
     >
       <TypeBadge type={s.type} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-slate-100">
+        <p className="truncate text-sm font-semibold text-foreground">
           {s.role || s.topic || 'Session'} {s.company ? `@ ${s.company}` : ''}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           {s.mode} · {formatDate(s.createdAt)} · {s.messageCount ?? 0} messages
         </p>
       </div>
@@ -131,10 +131,10 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
       )}
       {s.score != null && <Pill tone="emerald">Score {Math.round(s.score)}</Pill>}
       <div className="flex gap-2">
-        {s.status.toUpperCase() === 'ACTIVE' && (
+        {s.status.toUpperCase() === 'ACTIVE' && s.type !== 'CODING' && s.type !== 'APTITUDE' && (
           <button
             onClick={() => handleContinue(s)}
-            className="flex items-center gap-1.5 rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-bold text-emerald-300 transition-colors hover:bg-emerald-500/10"
+            className="flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
           >
             <Play size={13} />
             Continue
@@ -142,7 +142,7 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
         )}
         <button
           onClick={() => openDetail(s.id)}
-          className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-bold text-slate-300 transition-colors hover:border-slate-600"
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-muted transition-colors hover:border-primary-soft"
         >
           <Eye size={13} />
           View
@@ -154,11 +154,11 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
   return (
     <div className="phq-fade-in space-y-6">
       <div>
-        <h2 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-100">
-          <History size={24} className="text-emerald-400" />
+        <h2 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-foreground">
+          <History size={24} className="text-emerald-600" />
           All Sessions
         </h2>
-        <p className="mt-1 text-sm text-slate-400">Every interview, coding run and aptitude attempt, in one place.</p>
+        <p className="mt-1 text-sm text-muted">Every interview, coding run and aptitude attempt, in one place.</p>
       </div>
 
       {loading ? (
@@ -188,7 +188,7 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
 
       {detailLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="rounded-2xl bg-slate-900 p-6"><LoadingSpinner label="Loading transcript..." /></div>
+          <div className="rounded-2xl bg-white p-6"><LoadingSpinner label="Loading transcript..." /></div>
         </div>
       )}
       {detail && <SessionModal detail={detail} onClose={() => setDetail(null)} />}

@@ -28,6 +28,8 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    private final CookieOAuth2AuthorizationRequestRepository oAuth2AuthorizationRequestRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Bean
@@ -54,11 +56,15 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/health").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/api/v1/feedback").permitAll()
                 .requestMatchers("/api/v1/pdf-assistant/internal/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(authEndpoint -> authEndpoint
+                    .authorizationRequestRepository(oAuth2AuthorizationRequestRepository))
                 .successHandler(oAuth2AuthenticationSuccessHandler)
+                .failureHandler(oAuth2AuthenticationFailureHandler)
             );
 
         http.authenticationProvider(authenticationProvider());

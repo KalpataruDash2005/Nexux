@@ -6,4 +6,9 @@ spring:
   application:
     name: careeros-backend
 server:
-  port: 8081
+  port: ${PORT:8081}
+  forward-headers-strategy: framework
+app:
+  oauth:
+    cookie-secret: ${OAUTH_COOKIE_SECRET:nexora-dev-cookie-secret-change-me}
+    cookie-secure: ${OAUTH_COOKIE_SECURE:false}

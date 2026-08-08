@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,6 +22,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
+    @Value("${app.frontend-url:http://localhost:3000}")
+    private String frontendUrl;
+
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
     private final CustomUserDetailsService userDetailsService;
@@ -30,9 +34,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
-        
+
+        String base = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+
         if (email == null) {
-            response.sendRedirect("http://localhost:5173/auth?error=Email%20not%20found%20from%20OAuth2%20provider");
+            response.sendRedirect(base + "/auth?error=" + java.net.URLEncoder.encode("Email not found from OAuth2 provider", java.nio.charset.StandardCharsets.UTF_8));
             return;
         }
 
@@ -49,7 +55,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
         String token = jwtUtil.generateToken(userDetails);
 
-        String targetUrl = "http://localhost:5173/oauth2/callback?token=" + token;
+        String targetUrl = base + "/oauth2/callback?token=" + token;
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }

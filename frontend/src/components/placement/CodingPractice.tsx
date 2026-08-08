@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Code2, Play, ChevronDown, Lightbulb, Layers, Timer, RotateCcw, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { createCodingSession, submitCoding, CodingProblem, CodingEvaluation } from '../../services/placementService';
+import { Code2, Play, ChevronDown, Lightbulb, Layers, RotateCcw, Loader2, AlertTriangle, CheckCircle2, XCircle, Terminal } from 'lucide-react';
+import { createCodingSession, submitCoding, CodingProblem, CodingEvaluation, CodingTestResult } from '../../services/placementService';
 import { Card, SectionTitle, Pill, Ring, ScoreBar } from './ui';
 
 const TOPICS = [
@@ -15,10 +15,10 @@ const LANGUAGES = ['Java', 'Python', 'C++', 'JavaScript'];
 const DIFFICULTIES = ['EASY', 'MEDIUM', 'HARD'];
 
 const STARTER_CODE: Record<string, string> = {
-  Java: 'public class Solution {\n    public static void main(String[] args) {\n        // Write your solution here\n    }\n}',
-  Python: 'def solution():\n    # Write your solution here\n    pass',
+  Java: 'import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}',
+  Python: 'import sys\n\ndef solve():\n    data = sys.stdin.read().split()\n    # Write your solution here\n    pass\n\nsolve()',
   'C++': '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    // Write your solution here\n    return 0;\n}',
-  JavaScript: 'function solution() {\n  // Write your solution here\n}',
+  JavaScript: 'const readline = require("readline");\nconst rl = readline.createInterface({ input: process.stdin });\n\nrl.on("line", (line) => {\n  // Write your solution here\n});',
 };
 
 const CodingPractice: React.FC = () => {
@@ -34,6 +34,9 @@ const CodingPractice: React.FC = () => {
   const [code, setCode] = useState(STARTER_CODE.Python);
   const [submitting, setSubmitting] = useState(false);
   const [evaluation, setEvaluation] = useState<CodingEvaluation | null>(null);
+  const [passed, setPassed] = useState<boolean | null>(null);
+  const [totalScore, setTotalScore] = useState<number | null>(null);
+  const [testResults, setTestResults] = useState<CodingTestResult[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [altOpen, setAltOpen] = useState(false);
 
@@ -51,6 +54,8 @@ const CodingPractice: React.FC = () => {
       setLanguage('Python');
       setCode(STARTER_CODE.Python);
       setEvaluation(null);
+      setPassed(null);
+      setTotalScore(null);
     } catch (err) {
       setStartError((err as Error).message);
     } finally {
@@ -65,6 +70,9 @@ const CodingPractice: React.FC = () => {
     try {
       const res = await submitCoding(sessionId, { language, code });
       setEvaluation(res.evaluation);
+      setPassed(res.passed);
+      setTotalScore(res.totalScore);
+      setTestResults(res.testResults ?? []);
     } catch (err) {
       setSubmitError((err as Error).message);
     } finally {
@@ -74,6 +82,9 @@ const CodingPractice: React.FC = () => {
 
   const handleNext = () => {
     setEvaluation(null);
+    setPassed(null);
+    setTotalScore(null);
+    setTestResults([]);
     setProblem(null);
     setSessionId(null);
     setStartError(null);
@@ -84,25 +95,25 @@ const CodingPractice: React.FC = () => {
     return (
       <div className="phq-fade-in mx-auto max-w-2xl">
         <Card>
-          <div className="mb-6 flex items-center gap-2 text-emerald-400">
+          <div className="mb-6 flex items-center gap-2 text-emerald-600">
             <Code2 size={16} />
             <span className="text-[11px] font-bold uppercase tracking-wider">Coding Arena</span>
           </div>
-          <h2 className="text-2xl font-extrabold tracking-tight text-slate-100">Coding Practice</h2>
-          <p className="mt-1 text-sm text-slate-400">Get an AI-generated DSA problem tailored to your target role, then submit and receive a detailed evaluation.</p>
+          <h2 className="text-2xl font-extrabold tracking-tight text-foreground">Coding Practice</h2>
+          <p className="mt-1 text-sm text-muted">Get an AI-generated DSA problem tailored to your target role, then submit and receive a detailed evaluation.</p>
 
           <div className="mt-6 space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Target role</label>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Target role</label>
               <input
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 placeholder="e.g. Backend Engineer"
-                className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none focus:border-emerald-500/50"
+                className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-foreground placeholder-muted outline-none focus:border-primary"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Topic</label>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Topic</label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {TOPICS.map((t) => (
                   <button
@@ -110,8 +121,8 @@ const CodingPractice: React.FC = () => {
                     onClick={() => setTopic(t)}
                     className={`rounded-lg border px-2 py-2 text-xs font-semibold transition-all ${
                       topic === t
-                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
-                        : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                        ? 'border-primary-soft bg-primary-soft text-primary'
+                        : 'border-border text-muted hover:border-primary-soft'
                     }`}
                   >
                     {t}
@@ -120,7 +131,7 @@ const CodingPractice: React.FC = () => {
               </div>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">Difficulty</label>
+              <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">Difficulty</label>
               <div className="grid grid-cols-3 gap-2">
                 {DIFFICULTIES.map((d) => (
                   <button
@@ -128,8 +139,8 @@ const CodingPractice: React.FC = () => {
                     onClick={() => setDifficulty(d)}
                     className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
                       difficulty === d
-                        ? 'border-violet-500/50 bg-violet-500/10 text-violet-300'
-                        : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                        ? 'border-primary-soft bg-primary-soft text-primary'
+                        : 'border-border text-muted hover:border-primary-soft'
                     }`}
                   >
                     {d.charAt(0) + d.slice(1).toLowerCase()}
@@ -139,7 +150,7 @@ const CodingPractice: React.FC = () => {
             </div>
 
             {startError && (
-              <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+              <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
                 <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                 {startError}
               </div>
@@ -148,7 +159,7 @@ const CodingPractice: React.FC = () => {
             <button
               onClick={handleStart}
               disabled={starting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/40 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover px-4 py-3 text-sm font-bold text-white shadow-card transition-all hover:shadow-lg disabled:opacity-50"
             >
               {starting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
               {starting ? 'Generating problem...' : 'Start coding'}
@@ -167,16 +178,16 @@ const CodingPractice: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-xl font-extrabold tracking-tight text-slate-100">{problem.title}</h2>
+            <h2 className="text-xl font-extrabold tracking-tight text-foreground">{problem.title}</h2>
             <Pill tone={diffTone}>{problem.difficulty}</Pill>
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {problem.topics.map((t) => <Pill key={t} tone="slate">{t}</Pill>)}
+            {(problem.topics ?? []).map((t) => <Pill key={t} tone="slate">{t}</Pill>)}
           </div>
         </div>
         <button
           onClick={handleNext}
-          className="flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:border-slate-600"
+          className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-muted transition-colors hover:border-primary-soft"
         >
           <RotateCcw size={15} />
           New problem
@@ -188,19 +199,19 @@ const CodingPractice: React.FC = () => {
         <Card>
           <SectionTitle icon={<Layers size={16} />} title="Problem" />
           <div className="phq-markdown space-y-3">
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
-              <p className="whitespace-pre-wrap text-sm text-slate-300">{problem.statement}</p>
+            <div className="rounded-xl border border-border bg-tag-bg p-4">
+              <p className="whitespace-pre-wrap text-sm text-foreground">{problem.statement}</p>
             </div>
-            {problem.examples.length > 0 && (
+            {(problem.examples ?? []).length > 0 && (
               <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">Examples</p>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted">Examples</p>
                 <div className="space-y-2">
                   {problem.examples.map((ex, i) => (
-                    <div key={i} className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                      <div className="text-xs font-semibold text-slate-400">Input</div>
-                      <pre className="mt-1 overflow-x-auto font-mono text-sm text-emerald-300">{ex.input}</pre>
-                      <div className="mt-2 text-xs font-semibold text-slate-400">Output</div>
-                      <pre className="mt-1 overflow-x-auto font-mono text-sm text-cyan-300">{ex.output}</pre>
+                    <div key={i} className="rounded-xl border border-border bg-tag-bg p-3">
+                      <div className="text-xs font-semibold text-muted">Input</div>
+                      <pre className="mt-1 overflow-x-auto font-mono text-sm text-emerald-700">{ex.input}</pre>
+                      <div className="mt-2 text-xs font-semibold text-muted">Output</div>
+                      <pre className="mt-1 overflow-x-auto font-mono text-sm text-cyan-700">{ex.output}</pre>
                     </div>
                   ))}
                 </div>
@@ -208,8 +219,8 @@ const CodingPractice: React.FC = () => {
             )}
             {problem.constraints && (
               <div>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">Constraints</p>
-                <pre className="rounded-xl border border-slate-800 bg-slate-950 p-3 font-mono text-sm text-slate-300">{problem.constraints}</pre>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted">Constraints</p>
+                <pre className="rounded-xl border border-border bg-tag-bg p-3 font-mono text-sm text-foreground">{problem.constraints}</pre>
               </div>
             )}
           </div>
@@ -217,7 +228,7 @@ const CodingPractice: React.FC = () => {
 
         {/* Editor + result */}
         <Card className="flex flex-col p-0 overflow-hidden">
-          <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="flex gap-1">
               {LANGUAGES.map((lang) => (
                 <button
@@ -230,29 +241,37 @@ const CodingPractice: React.FC = () => {
                   }}
                   disabled={!!evaluation}
                   className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
-                    language === lang ? 'bg-emerald-500/15 text-emerald-300' : 'text-slate-500 hover:bg-slate-800'
+                    language === lang ? 'bg-primary-soft text-primary' : 'text-muted hover:bg-tag-bg'
                   }`}
                 >
                   {lang}
                 </button>
               ))}
             </div>
-            <span className="flex items-center gap-1.5 text-xs text-slate-500"><Timer size={13} /> {language}</span>
+            <span className="flex items-center gap-1.5 text-xs text-muted"><Code2 size={13} /> {language}</span>
           </div>
 
           {evaluation ? (
-            <EvaluationPanel evaluation={evaluation} onNext={handleNext} altOpen={altOpen} onToggleAlt={() => setAltOpen((o) => !o)} />
+            <EvaluationPanel
+              evaluation={evaluation}
+              passed={passed}
+              totalScore={totalScore}
+              testResults={testResults}
+              onNext={handleNext}
+              altOpen={altOpen}
+              onToggleAlt={() => setAltOpen((o) => !o)}
+            />
           ) : (
             <>
               <textarea
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 spellCheck={false}
-                className="phq-scrollbar h-72 flex-1 resize-none bg-slate-950 p-4 font-mono text-sm leading-relaxed text-slate-200 outline-none"
+                className="phq-scrollbar h-72 flex-1 resize-none bg-tag-bg p-4 font-mono text-sm leading-relaxed text-foreground outline-none"
               />
-              <div className="border-t border-slate-800 p-4">
+              <div className="border-t border-border p-4">
                 {submitError && (
-                  <div className="mb-3 flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+                  <div className="mb-3 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
                     <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                     {submitError}
                   </div>
@@ -260,14 +279,14 @@ const CodingPractice: React.FC = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={resetEditor}
-                    className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:border-slate-600"
+                    className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:border-primary-soft"
                   >
                     Reset
                   </button>
                   <button
                     onClick={handleSubmit}
                     disabled={submitting || !code.trim()}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/40 disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover px-4 py-2.5 text-sm font-bold text-white shadow-card transition-all hover:shadow-lg disabled:opacity-50"
                   >
                     {submitting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
                     {submitting ? 'Evaluating...' : 'Run & submit'}
@@ -284,16 +303,22 @@ const CodingPractice: React.FC = () => {
 
 const EvaluationPanel: React.FC<{
   evaluation: CodingEvaluation;
+  passed: boolean | null;
+  totalScore: number | null;
+  testResults: CodingTestResult[];
   onNext: () => void;
   altOpen: boolean;
   onToggleAlt: () => void;
-}> = ({ evaluation, onNext, altOpen, onToggleAlt }) => {
+}> = ({ evaluation, passed, totalScore, testResults, onNext, altOpen, onToggleAlt }) => {
   const axes: { label: string; value: number }[] = [
     { label: 'Correctness', value: evaluation.correctness },
     { label: 'Code quality', value: evaluation.codeQuality },
     { label: 'Naming', value: evaluation.naming },
     { label: 'Optimization', value: evaluation.optimization },
   ];
+  const alternatives = evaluation.alternativeSolutions ?? [];
+  const followUps = evaluation.expectedQuestions ?? [];
+  const passedCount = testResults.filter((t) => t.passed).length;
 
   return (
     <div className="phq-fade-in phq-scrollbar max-h-[36rem] overflow-y-auto p-5">
@@ -305,23 +330,52 @@ const EvaluationPanel: React.FC<{
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
+        {passed != null && (
+          <Pill tone={passed ? 'emerald' : 'rose'}>
+            {passed ? 'Passed' : 'Needs work'} {totalScore != null && `· ${Math.round(totalScore)}/100`}
+          </Pill>
+        )}
         <Pill tone="violet">Time: {evaluation.timeComplexity || '—'}</Pill>
         <Pill tone="cyan">Space: {evaluation.spaceComplexity || '—'}</Pill>
       </div>
 
+      {testResults.length > 0 && (
+        <div className="mt-5">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted">
+            <Terminal size={13} /> Test cases
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+              <CheckCircle2 size={18} className="shrink-0 text-emerald-600" />
+              <div>
+                <div className="text-lg font-bold leading-tight text-emerald-700">{passedCount}</div>
+                <div className="text-xs font-medium text-emerald-600">Passed</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50/60 px-4 py-3">
+              <XCircle size={18} className="shrink-0 text-rose-600" />
+              <div>
+                <div className="text-lg font-bold leading-tight text-rose-700">{testResults.length - passedCount}</div>
+                <div className="text-xs font-medium text-rose-600">Failed</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4">
-        <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted">
           <Lightbulb size={13} /> Detailed feedback
         </p>
-        <div className="phq-markdown rounded-xl border border-slate-800 bg-slate-950 p-4">
+        <div className="phq-markdown rounded-xl border border-border bg-tag-bg p-4">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{evaluation.feedback || 'No detailed feedback.'}</ReactMarkdown>
         </div>
       </div>
 
-      {evaluation.alternativeSolutions.length > 0 && (
+      {alternatives.length > 0 && (
         <button
           onClick={onToggleAlt}
-          className="mt-4 flex w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:border-slate-600"
+          className="mt-4 flex w-full items-center justify-between rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-muted transition-colors hover:border-primary-soft"
         >
           Alternative solutions
           <ChevronDown size={16} className={`transition-transform ${altOpen ? 'rotate-180' : ''}`} />
@@ -329,8 +383,8 @@ const EvaluationPanel: React.FC<{
       )}
       {altOpen && (
         <div className="phq-fade-in mt-3 space-y-2">
-          {evaluation.alternativeSolutions.map((s, i) => (
-            <div key={i} className="flex items-start gap-2 rounded-xl border border-slate-800 bg-slate-900 p-3 text-sm text-slate-300">
+          {alternatives.map((s, i) => (
+            <div key={i} className="flex items-start gap-2 rounded-xl border border-border bg-tag-bg p-3 text-sm text-foreground">
               <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
               {s}
             </div>
@@ -338,15 +392,15 @@ const EvaluationPanel: React.FC<{
         </div>
       )}
 
-      {evaluation.expectedQuestions.length > 0 && (
+      {followUps.length > 0 && (
         <div className="mt-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted">
             <Lightbulb size={13} /> Expected interviewer questions
           </p>
           <div className="space-y-2">
-            {evaluation.expectedQuestions.map((q, i) => (
-              <div key={i} className="flex items-start gap-2 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 text-sm text-slate-300">
-                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400" />
+            {followUps.map((q, i) => (
+              <div key={i} className="flex items-start gap-2 rounded-xl border border-primary-soft bg-primary-tint p-3 text-sm text-foreground">
+                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 {q}
               </div>
             ))}
@@ -356,7 +410,7 @@ const EvaluationPanel: React.FC<{
 
       <button
         onClick={onNext}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/40"
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary-hover px-4 py-3 text-sm font-bold text-white shadow-card transition-all hover:shadow-lg"
       >
         <CheckCircle2 size={16} />
         Next problem

@@ -9,7 +9,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/resume")
-@CrossOrigin(origins = "*")
 public class ResumeController {
 
     @Autowired
@@ -23,8 +22,12 @@ public class ResumeController {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("{\"error\": \"File is empty, please upload a valid PDF.\"}");
         }
-        
-        if (!"application/pdf".equals(file.getContentType())) {
+
+        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+            return ResponseEntity.badRequest().body("{\"error\": \"File exceeds the 5 MB limit for resume analysis.\"}");
+        }
+
+        if (!"application/pdf".equals(file.getContentType()) && !isPdfName(file.getOriginalFilename())) {
             return ResponseEntity.badRequest().body("{\"error\": \"Only PDF files are allowed.\"}");
         }
 
@@ -37,5 +40,11 @@ public class ResumeController {
         String analysisJson = resumeAnalyzerService.analyzeResume(extractedText);
         
         return ResponseEntity.ok(analysisJson);
+    }
+
+    private static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024;
+
+    private static boolean isPdfName(String filename) {
+        return filename != null && filename.toLowerCase().endsWith(".pdf");
     }
 }

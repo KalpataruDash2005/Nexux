@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { BookOpen, Plus, Folder, Loader2, Pencil, Trash2, Sparkles, X } from 'lucide-react';
 import { getWorkspaces, createWorkspace, deleteWorkspace, renameWorkspace, Workspace } from '../services/workspaceService';
+import { useToast } from '../components/ui/Toast';
+import { useConfirm } from '../components/ui/Confirm';
 
 const WorkspaceList: React.FC = () => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -11,6 +13,8 @@ const WorkspaceList: React.FC = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     fetchWorkspaces();
@@ -55,8 +59,9 @@ const WorkspaceList: React.FC = () => {
         setWorkspaces(workspaces.map((w) => (w.id === updated.id ? updated : w)));
       }
       setModal(null);
+      toast('Workspace saved successfully', 'success');
     } catch (error: any) {
-      alert(error?.response?.data?.message || 'Failed to save workspace');
+      toast(error?.response?.data?.message || 'Failed to save workspace', 'error');
       console.error('Failed to save workspace', error);
     } finally {
       setIsCreating(false);
@@ -65,14 +70,19 @@ const WorkspaceList: React.FC = () => {
   };
 
   const handleDelete = async (ws: Workspace) => {
-    if (!window.confirm(`Delete "${ws.name}"? This permanently removes the workspace, its PDFs, chats and study data.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Delete workspace',
+      message: `Delete "${ws.name}"? This permanently removes the workspace, its PDFs, chats and study data.`,
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteWorkspace(ws.id);
       setWorkspaces(workspaces.filter((w) => w.id !== ws.id));
+      toast('Workspace deleted', 'success');
     } catch (error: any) {
-      alert(error?.response?.data?.message || 'Failed to delete workspace. Please try again.');
+      toast(error?.response?.data?.message || 'Failed to delete workspace. Please try again.', 'error');
       console.error('Failed to delete workspace', error);
     }
   };

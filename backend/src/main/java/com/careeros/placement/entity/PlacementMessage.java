@@ -32,10 +32,10 @@ public class PlacementMessage {
     @Column(name = "role", nullable = false, length = 20)
     private String role;
 
-    @Column(name = "content", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "analysis_json", columnDefinition = "LONGTEXT")
+    @Column(name = "analysis_json", columnDefinition = "TEXT")
     private String analysisJson;
 
     @Column(name = "created_at", nullable = false, updatable = false)

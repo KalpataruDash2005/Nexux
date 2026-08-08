@@ -33,7 +33,7 @@ public class DocumentService {
     private final ProcessingService processingService;
 
     // Local storage path for uploaded files
-    @Value("")
+    @Value("${app.upload-dir:./storage/documents}")
     private String uploadDir;
 
     public DocumentResponseDto uploadDocument(String ownerEmail, String workspaceId, MultipartFile file) {
@@ -46,6 +46,9 @@ public class DocumentService {
         if (file.isEmpty()) {
             throw new BadRequestException("Cannot upload empty file");
         }
+        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+            throw new BadRequestException("File exceeds the 50 MB upload limit");
+        }
 
         try {
             // Ensure directory exists
@@ -56,9 +59,10 @@ public class DocumentService {
 
             // Save file
             String originalFilename = file.getOriginalFilename();
+            String safeName = sanitizeFileName(originalFilename);
             String extension = "unknown";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            if (safeName.contains(".")) {
+                extension = safeName.substring(safeName.lastIndexOf("."));
             }
             String uniqueFileName = UUID.randomUUID().toString() + extension;
             Path filePath = uploadPath.resolve(uniqueFileName);
@@ -67,7 +71,7 @@ public class DocumentService {
             // Save metadata
             Document document = Document.builder()
                     .workspace(workspace)
-                    .name(originalFilename != null ? originalFilename : "Unnamed File")
+                    .name(safeName)
                     .type(file.getContentType() != null ? file.getContentType() : "application/octet-stream")
                     .sizeBytes(file.getSize())
                     .status(Document.Status.PROCESSING)
@@ -129,5 +133,22 @@ public class DocumentService {
                 .createdAt(document.getCreatedAt())
                 .updatedAt(document.getUpdatedAt())
                 .build();
+    }
+
+    private static final long MAX_FILE_SIZE_BYTES = 50L * 1024 * 1024;
+
+    /**
+     * Strip path separators and control characters from a client-supplied file name so it
+     * can never traverse directories or be used to craft the stored path.
+     */
+    static String sanitizeFileName(String originalFilename) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return "Unnamed File";
+        }
+        String name = originalFilename
+                .replaceAll("[/\\\\]", "_")
+                .replaceAll("[\\p{Cntrl}]", "")
+                .trim();
+        return name.isEmpty() ? "Unnamed File" : name;
     }
 }

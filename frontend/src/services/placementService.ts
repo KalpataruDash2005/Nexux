@@ -135,6 +135,7 @@ export interface PlacementSession {
   createdAt: string;
   startedAt: string | null;
   endedAt: string | null;
+  summary: string | null;
 }
 
 export interface CreateSessionBody {
@@ -203,6 +204,12 @@ export interface CodingExample {
   output: string;
 }
 
+export interface CodingTest {
+  input: string;
+  expectedOutput: string;
+  hidden: boolean;
+}
+
 export interface CodingProblem {
   title: string;
   statement: string;
@@ -210,6 +217,7 @@ export interface CodingProblem {
   constraints: string;
   difficulty: string;
   topics: string[];
+  testCases?: CodingTest[];
 }
 
 export interface CodingSessionResponse {
@@ -235,10 +243,22 @@ export interface CodingEvaluation {
   expectedQuestions: string[];
 }
 
+export interface CodingTestResult {
+  passed: boolean;
+  input: string;
+  expectedOutput: string;
+  actualOutput: string;
+  error: string | null;
+  hidden: boolean;
+}
+
 export interface CodingSubmitResponse {
   evaluation: CodingEvaluation;
   passed: boolean;
   totalScore: number;
+  testResults?: CodingTestResult[];
+  passedTests?: number;
+  totalTests?: number;
 }
 
 export interface SubmitCodingBody {
@@ -349,6 +369,7 @@ export interface RoadmapData {
   codingRecommendations: string[];
   dsaRevision: string[];
   aptitudePractice: string[];
+  generatedAt?: string;
 }
 
 export function errorMessage(err: unknown, fallback: string): string {

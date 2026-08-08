@@ -56,6 +56,7 @@ public class PlacementService {
     private final TextExtractionService textExtractionService;
     private final PlacementAiService ai;
     private final ObjectMapper objectMapper;
+    private final CodeExecutorService codeExecutorService;
 
     private final Map<String, CacheEntry> readinessCache = new ConcurrentHashMap<>();
     private final Map<String, CacheEntry> roadmapCache = new ConcurrentHashMap<>();
@@ -71,7 +72,8 @@ public class PlacementService {
                             UserRepository userRepository,
                             TextExtractionService textExtractionService,
                             PlacementAiService ai,
-                            ObjectMapper objectMapper) {
+                            ObjectMapper objectMapper,
+                            CodeExecutorService codeExecutorService) {
         this.resumeRepository = resumeRepository;
         this.analysisRepository = analysisRepository;
         this.sessionRepository = sessionRepository;
@@ -80,6 +82,7 @@ public class PlacementService {
         this.textExtractionService = textExtractionService;
         this.ai = ai;
         this.objectMapper = objectMapper;
+        this.codeExecutorService = codeExecutorService;
     }
 
     // ------------------------------------------------------------------
@@ -115,13 +118,15 @@ public class PlacementService {
                     .build();
             resumeRepository.save(resume);
 
-            AnalyzeResumeResponse.Analysis analysis = ai.analyzeResumeText(text);
+            AnalyzeResumeResponse.Analysis analysis = sanitizeAnalysis(ai.analyzeResumeText(text));
             PlacementResumeAnalysis saved = PlacementResumeAnalysis.builder()
                     .resumeId(resume.getId())
                     .owner(owner)
                     .analysisJson(writeJson(analysis))
                     .build();
             analysisRepository.save(saved);
+
+            invalidateStrategyCaches(ownerEmail);
 
             return new AnalyzeResumeResponse(resume.getId(), fileName, text.length(), analysis);
         } catch (BadRequestException e) {
@@ -249,8 +254,8 @@ public class PlacementService {
                 .build();
         messageRepository.save(userMessage);
 
-        InterviewFeedback feedback = ai.evaluateAnswer(session.getType(), session.getRole(), session.getCompany(),
-                session.getDifficulty(), historyLines, content);
+        InterviewFeedback feedback = sanitizeFeedback(ai.evaluateAnswer(session.getType(), session.getRole(), session.getCompany(),
+                session.getDifficulty(), historyLines, content));
 
         String finalSummary = null;
         boolean shouldEnd = feedback.shouldEnd();
@@ -315,6 +320,7 @@ public class PlacementService {
         session.setSummary(session.getSummary() == null ? "Interview completed." : session.getSummary());
         session.setEndedAt(LocalDateTime.now());
         sessionRepository.save(session);
+        invalidateStrategyCaches(ownerEmail);
         return new EndSessionResponse(score, session.getSummary(), (int) messageRepository.countBySessionId(session.getId()));
     }
 
@@ -362,8 +368,8 @@ public class PlacementService {
     @Transactional
     public CreateCodingResponse createCodingSession(String ownerEmail, CreateCodingRequest req) {
         User owner = resolveOwner(ownerEmail);
-        CodingProblem problem = ai.generateCodingProblem(req.role(), req.topic(), req.difficulty(),
-                usedCodingTitles(owner.getId()));
+        CodingProblem problem = sanitizeCodingProblem(ai.generateCodingProblem(req.role(), req.topic(), req.difficulty(),
+                usedCodingTitles(owner.getId())));
         PlacementSession session = PlacementSession.builder()
                 .owner(owner)
                 .type("CODING")
@@ -392,14 +398,30 @@ public class PlacementService {
         if (problem == null) {
             throw new BadRequestException("Coding problem payload is missing.");
         }
-        CodingEvaluation evaluation = ai.evaluateCode(problem,
-                req.language() == null ? "java" : req.language(), req.code());
 
-        int totalScore = (int) Math.round(0.5 * evaluation.correctness()
+        List<CodingTestResult> testResults = codeExecutorService.runTests(
+                req.language() == null ? "java" : req.language(), req.code(), problem.testCases());
+        int totalTests = testResults.size();
+        long passedTests = testResults.stream().filter(CodingTestResult::passed).count();
+        boolean testsExecuted = testResults.stream()
+                .anyMatch(r -> r.error() == null
+                        || r.error().isBlank()
+                        || !(r.error().startsWith("Language")
+                        || r.error().startsWith("No test cases")
+                        || r.error().startsWith("Sandbox")));;
+
+        CodingEvaluation evaluation = sanitizeEvaluation(ai.evaluateCode(problem,
+                req.language() == null ? "java" : req.language(), req.code()));
+
+        int testScore = totalTests == 0 ? 0 : (int) Math.round(100.0 * passedTests / totalTests);
+        int correctnessScore = testsExecuted ? Math.min(evaluation.correctness(), testScore) : evaluation.correctness();
+        int totalScore = (int) Math.round(0.5 * correctnessScore
                 + 0.2 * evaluation.codeQuality()
                 + 0.1 * evaluation.naming()
                 + 0.2 * evaluation.optimization());
-        boolean passed = evaluation.correctness() >= 75;
+        boolean passed = testsExecuted
+                ? (totalTests > 0 && passedTests == totalTests)
+                : evaluation.correctness() >= 75;
 
         User owner = resolveOwner(ownerEmail);
         messageRepository.save(PlacementMessage.builder()
@@ -415,8 +437,9 @@ public class PlacementService {
         session.setSummary(evaluation.feedback());
         session.setEndedAt(LocalDateTime.now());
         sessionRepository.save(session);
+        invalidateStrategyCaches(ownerEmail);
 
-        return new SubmitCodingResponse(evaluation, passed, totalScore);
+        return new SubmitCodingResponse(evaluation, passed, totalScore, testResults, (int) passedTests, totalTests);
     }
 
     // ------------------------------------------------------------------
@@ -459,7 +482,7 @@ public class PlacementService {
             throw new BadRequestException("Aptitude test payload is missing.");
         }
         Map<String, AptitudeTestDto.Question> byId = test.questions().stream()
-                .collect(Collectors.toMap(AptitudeTestDto.Question::id, Function.identity()));
+                .collect(Collectors.toMap(AptitudeTestDto.Question::id, Function.identity(), (a, b) -> a));
         Map<String, Integer> submitted = new HashMap<>();
         if (req.answers() != null) {
             for (AptitudeAnswerRequest a : req.answers()) {
@@ -488,6 +511,7 @@ public class PlacementService {
         session.setSummary("Scored " + correct + "/" + total + " (" + percentage + "%)");
         session.setEndedAt(LocalDateTime.now());
         sessionRepository.save(session);
+        invalidateStrategyCaches(ownerEmail);
 
         return new SubmitAptitudeResponse(correct, total, percentage, true, detailed);
     }
@@ -661,7 +685,7 @@ public class PlacementService {
                     nvl(aiPart.recommendedCompanies()), nvl(aiPart.recommendedRoles()), nvl(aiPart.learningPath()));
         }
 
-        ReadinessResponse.ReadinessAi aiPart = ai.generateReadiness(buildProfileSummary(owner.getId()));
+        ReadinessResponse.ReadinessAi aiPart = sanitizeReadiness(ai.generateReadiness(buildProfileSummary(owner.getId())));
         readinessCache.put(ownerEmail, new CacheEntry(Instant.now().plusMillis(STRATEGY_CACHE_MS), aiPart));
         return new ReadinessResponse(score, label, components,
                 nvl(aiPart.recommendedCompanies()), nvl(aiPart.recommendedRoles()), nvl(aiPart.learningPath()));
@@ -678,7 +702,8 @@ public class PlacementService {
                 nvl(aiPart.weakTopics()), nvl(aiPart.dailyTasks()), nvl(aiPart.weeklyGoals()),
                 nvl(aiPart.interviewSchedule()), nvl(aiPart.companyPreparation()),
                 nvl(aiPart.resumeImprovements()), nvl(aiPart.codingRecommendations()),
-                nvl(aiPart.dsaRevision()), nvl(aiPart.aptitudePractice()));
+                nvl(aiPart.dsaRevision()), nvl(aiPart.aptitudePractice()),
+                Instant.now().toString());
         roadmapCache.put(ownerEmail, new CacheEntry(Instant.now().plusMillis(STRATEGY_CACHE_MS), response));
         return response;
     }
@@ -686,6 +711,11 @@ public class PlacementService {
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
+
+    private void invalidateStrategyCaches(String ownerEmail) {
+        readinessCache.remove(ownerEmail);
+        roadmapCache.remove(ownerEmail);
+    }
 
     private User resolveOwner(String ownerEmail) {
         return userRepository.findByEmail(ownerEmail)
@@ -704,7 +734,8 @@ public class PlacementService {
                 (int) messageRepository.countBySessionId(s.getId()),
                 s.getCreatedAt().toString(),
                 s.getStartedAt() == null ? null : s.getStartedAt().toString(),
-                s.getEndedAt() == null ? null : s.getEndedAt().toString());
+                s.getEndedAt() == null ? null : s.getEndedAt().toString(),
+                s.getSummary());
     }
 
     private List<String> toHistoryLines(List<PlacementMessage> messages) {
@@ -930,6 +961,78 @@ public class PlacementService {
 
     private <T> List<T> nvl(List<T> list) {
         return list == null ? List.of() : list;
+    }
+
+    private AnalyzeResumeResponse.Analysis sanitizeAnalysis(AnalyzeResumeResponse.Analysis a) {
+        if (a == null) {
+            return null;
+        }
+        return new AnalyzeResumeResponse.Analysis(
+                a.candidateName(),
+                a.atsScore(),
+                a.overallScore(),
+                a.categoryScores() == null ? Map.of() : a.categoryScores(),
+                nvl(a.skills()), nvl(a.missingSkills()), nvl(a.strengths()), nvl(a.weaknesses()),
+                nvl(a.suggestions()), nvl(a.rewrittenBullets()), nvl(a.sections()),
+                nvl(a.projects()), nvl(a.education()), nvl(a.experience()),
+                nvl(a.expectedQuestions()), nvl(a.recommendedProjects()),
+                nvl(a.recommendedCertifications()), nvl(a.checklist()));
+    }
+
+    private InterviewFeedback sanitizeFeedback(InterviewFeedback fb) {
+        if (fb == null) {
+            return null;
+        }
+        return new InterviewFeedback(
+                fb.score(),
+                fb.scores() == null ? Map.of() : fb.scores(),
+                nvl(fb.strengths()), nvl(fb.weaknesses()), nvl(fb.improvementTips()),
+                fb.idealAnswer(), fb.nextQuestion(), fb.nextDifficulty(),
+                fb.questionCount(), fb.shouldEnd(), fb.finalSummary());
+    }
+
+    private CodingProblem sanitizeCodingProblem(CodingProblem p) {
+        if (p == null) {
+            return null;
+        }
+        List<CodingProblem.CodingTest> tests = new ArrayList<>();
+        if (p.testCases() != null) {
+            for (CodingProblem.CodingTest t : p.testCases()) {
+                if (t == null || t.input() == null || t.expectedOutput() == null) {
+                    continue;
+                }
+                if (tests.size() >= 5) {
+                    break;
+                }
+                tests.add(t);
+            }
+        }
+        return new CodingProblem(p.title(), p.statement(), nvl(p.examples()),
+                p.constraints(), p.difficulty(), nvl(p.topics()), tests);
+    }
+
+    private CodingEvaluation sanitizeEvaluation(CodingEvaluation e) {
+        if (e == null) {
+            return null;
+        }
+        return new CodingEvaluation(e.correctness(), e.timeComplexity(), e.spaceComplexity(),
+                e.codeQuality(), e.naming(), e.optimization(), e.feedback(),
+                nvl(e.alternativeSolutions()), nvl(e.expectedQuestions()));
+    }
+
+    private ReadinessResponse.ReadinessAi sanitizeReadiness(ReadinessResponse.ReadinessAi aiPart) {
+        if (aiPart == null) {
+            return null;
+        }
+        List<ReadinessResponse.LearningItem> path = aiPart.learningPath();
+        if (path != null) {
+            path = path.stream()
+                    .map(item -> new ReadinessResponse.LearningItem(
+                            item.topic(), nvl(item.resources()), item.estimatedHours(), item.priority()))
+                    .toList();
+        }
+        return new ReadinessResponse.ReadinessAi(
+                nvl(aiPart.recommendedCompanies()), nvl(aiPart.recommendedRoles()), path);
     }
 
     private String writeJson(Object o) {

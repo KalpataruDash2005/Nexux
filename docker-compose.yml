@@ -1,23 +1,24 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: careeros-mysql
+  postgres:
+    image: postgres:16-alpine
+    container_name: careeros-postgres
     restart: always
     environment:
-      MYSQL_DATABASE: careeros_db
-      MYSQL_ROOT_PASSWORD: Dash@1908
+      POSTGRES_DB: careeros_db
+      POSTGRES_USER: careeros_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-careeros_dev_password}
     ports:
-      - "3307:3306"
+      - "5432:5432"
     volumes:
-      - careeros-mysql-data:/var/lib/mysql
+      - careeros-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U careeros_user -d careeros_db"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 10s
 
   qdrant:
     image: qdrant/qdrant:v1.9.7
@@ -50,12 +51,12 @@ services:
     env_file:
       - .env
     environment:
-      - DB_HOST=mysql
-      - DB_PORT=3306
+      - DB_HOST=postgres
+      - DB_PORT=5432
       - QDRANT_HOST=qdrant
       - SPRING_PROFILES_ACTIVE=dev
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       qdrant:
         condition: service_started
@@ -71,11 +72,9 @@ services:
       - backend
 
 volumes:
-  careeros-mysql-data:
-    external: true
-    name: docker_mysql-data
+  careeros-postgres-data:
+    driver: local
   careeros-qdrant-data:
-    external: true
-    name: docker_qdrant-data
+    driver: local
   n8n-data:
     driver: local

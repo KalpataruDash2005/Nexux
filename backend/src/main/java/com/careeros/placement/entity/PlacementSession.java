@@ -50,7 +50,7 @@ public class PlacementSession {
     @Column(name = "score")
     private Integer score;
 
-    @Column(name = "payload_json", columnDefinition = "LONGTEXT")
+    @Column(name = "payload_json", columnDefinition = "TEXT")
     private String payloadJson;
 
     @Column(name = "summary", columnDefinition = "TEXT")

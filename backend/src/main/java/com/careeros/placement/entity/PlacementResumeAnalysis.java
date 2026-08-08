@@ -29,7 +29,7 @@ public class PlacementResumeAnalysis {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    @Column(name = "analysis_json", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "analysis_json", nullable = false, columnDefinition = "TEXT")
     private String analysisJson;
 
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -29,7 +29,7 @@ public class PlacementResume {
     @Column(name = "file_name", nullable = false, length = 255)
     private String fileName;
 
-    @Column(name = "text", columnDefinition = "LONGTEXT")
+    @Column(name = "text", columnDefinition = "TEXT")
     private String text;
 
     @Column(name = "created_at", nullable = false, updatable = false)

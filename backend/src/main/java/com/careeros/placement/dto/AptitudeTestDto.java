@@ -12,7 +12,12 @@ public record AptitudeTestDto(List<Question> questions) {
             String explanation,
             String shortcut,
             String difficulty,
-            String companyFrequency
+            String companyFrequency,
+            String topic,
+            String formulaUsed,
+            String commonMistake,
+            String timeToSolve,
+            Integer marks
     ) {}
 
     public AptitudeTestDto forClient() {
@@ -20,7 +25,8 @@ public record AptitudeTestDto(List<Question> questions) {
             return new AptitudeTestDto(List.of());
         }
         List<Question> sanitized = questions.stream()
-                .map(q -> new Question(q.id(), q.text(), q.options(), null, null, null, q.difficulty(), q.companyFrequency()))
+                .map(q -> new Question(q.id(), q.text(), q.options(), null, null, null, q.difficulty(), q.companyFrequency(),
+                        q.topic(), null, null, q.timeToSolve(), q.marks()))
                 .toList();
         return new AptitudeTestDto(sanitized);
     }

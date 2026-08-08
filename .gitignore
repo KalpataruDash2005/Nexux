@@ -34,6 +34,9 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.staging.local
+.env.*
+!.env.example
 
 # Java/Maven (Backend)
 target/
@@ -71,7 +74,6 @@ frontend/patch*.py
 # Database & Local Infrastructure
 docker/mysql/data/
 docker/n8n/data/
-.env
 
 # General Logs & Cache
 *.log
@@ -79,3 +81,5 @@ docker/n8n/data/
 .stylelintcache
 .cache/
 .sass-cache/
+
+supabase/.temp/

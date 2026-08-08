@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -10,3 +10,59 @@ spring:
     show-sql: false
   flyway:
     enabled: false
+
+  mail:
+    host: localhost
+    port: 2525
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id.apps.googleusercontent.com
+            client-secret: test-client-secret
+            scope: email, profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/google"
+
+app:
+  jwt:
+    secret: test-only-jwt-secret-placeholder-not-used-in-prod-0123456789abcdef
+    expiration-ms: 86400000
+  qdrant:
+    host: localhost
+    port: 6334
+  openai:
+    api-key: test-key
+    base-url: https://api.groq.com/openai/v1
+    model: llama-3.1-8b-instant
+  pdf-assistant:
+    n8n-enabled: false
+    n8n-webhook-url: http://localhost:5678
+    n8n-api-key: test-key
+    internal-key: test-internal
+    storage-dir: ./storage/pdf-assistant-test
+    qdrant-host: localhost
+    qdrant-port: 6334
+    qdrant-rest-port: 6333
+    qdrant-collection: careeros_pdf_chunks
+    embedding-dimension: 384
+    chunk-size: 600
+    chunk-overlap: 100
+    top-k: 5
+    min-score: 0.30
+gemini:
+  api:
+    key: test-key
+
+careeros:
+  admin:
+    email: admin@nexora.app
+    password: test-password
