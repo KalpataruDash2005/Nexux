@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { History, Eye, Play, X, MessageSquare } from 'lucide-react';
+import { History, Eye, Play, X, MessageSquare, Trash2, Loader2 } from 'lucide-react';
 import {
-  getSessions, getSession, PlacementSession, SessionDetail, InterviewFeedback,
+  getSessions, getSession, deleteSession, PlacementSession, SessionDetail, InterviewFeedback,
 } from '../../services/placementService';
 import {
   Card, SectionTitle, TypeBadge, DifficultyChip, Pill, LoadingSpinner, ErrorBanner,
@@ -73,6 +73,7 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -104,6 +105,21 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
 
   const handleContinue = (s: PlacementSession) => {
     onNavigate('interview', s.id);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this session? Its transcript and score will be permanently removed.')) return;
+    setDeletingId(id);
+    try {
+      await deleteSession(id);
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      if (detail?.session.id === id) setDetail(null);
+      toast('Session deleted.', 'success');
+    } catch (err) {
+      toast((err as Error).message, 'error');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const active = sessions.filter((s) => s.status.toUpperCase() === 'ACTIVE');
@@ -146,6 +162,15 @@ const SessionsView: React.FC<PlacementNavProps> = ({ onNavigate }) => {
         >
           <Eye size={13} />
           View
+        </button>
+        <button
+          onClick={() => handleDelete(s.id)}
+          disabled={deletingId === s.id}
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-error transition-colors hover:border-error hover:bg-error/5 disabled:opacity-50"
+          title="Delete session"
+        >
+          {deletingId === s.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+          Delete
         </button>
       </div>
     </div>

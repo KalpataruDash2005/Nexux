@@ -105,7 +105,7 @@ public class PlacementAiService {
                 "- checklist: array of strings (max 8 actionable resume fixes)\n" +
                 "IMPORTANT: Never invent experience, companies, degrees, or skills not present in or directly implied by the text. " +
                 "If a section is missing, return an empty array. Return ONLY valid JSON.";
-        return chatJson(resumeSystem(), user, AnalyzeResumeResponse.Analysis.class);
+        return chatJson(resumeSystem(), user, AnalyzeResumeResponse.Analysis.class, 0.2, 4096);
     }
 
     public String firstQuestion(String type, String role, String company, String difficulty, String resumeText) {
@@ -349,6 +349,8 @@ public AptitudeParsedBatch parseAptitudePdf(String text) {
                 "- recommendedCompanies: array of strings (companies that best fit this profile, max 5)\n" +
                 "- recommendedRoles: array of strings (roles to target, max 5)\n" +
                 "- learningPath: array of objects {topic, resources[] (max 3), estimatedHours (number), priority (HIGH|MEDIUM|LOW)} (max 6 items, most impactful first)\n" +
+                "RULES: resources must be REAL, specific URLs (start with https://) of well-known free learning material such as LeetCode, GeeksforGeeks, W3Schools, MDN, Coursera, freeCodeCamp, TakeUForward/Striver, or official docs. " +
+                "Do NOT use the same resource URL twice across the whole learningPath, and do not repeat any topic. " +
                 "Base recommendations ONLY on the provided profile. Return ONLY the JSON.";
         return chatJson(strategySystem(), user, ReadinessResponse.ReadinessAi.class);
     }
@@ -365,7 +367,8 @@ public AptitudeParsedBatch parseAptitudePdf(String text) {
                 "- codingRecommendations: array of strings (max 5)\n" +
                 "- dsaRevision: array of strings (max 5)\n" +
                 "- aptitudePractice: array of strings (max 5)\n" +
-                "Be concrete and actionable. Return ONLY the JSON.";
+                "RULES: Keep each field's items DISTINCT — never repeat the same task, topic, or phrase inside a field or across fields. " +
+                "Every daily task must be unique. Be concrete and actionable. Return ONLY the JSON.";
         return chatJson(strategySystem(), user, RoadmapResponse.RoadmapAi.class);
     }
 

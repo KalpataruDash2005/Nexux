@@ -25,6 +25,7 @@ public class TaskService {
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_PAUSED = "PAUSED";
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
+    private static final int MAX_TASKS_PER_USER = 500;
     private static final java.util.Set<String> VALID_STATUSES =
             java.util.Set.of(STATUS_PENDING, STATUS_COMPLETED, STATUS_PAUSED, STATUS_IN_PROGRESS);
 
@@ -52,6 +53,9 @@ public class TaskService {
             throw new BadRequestException("Task title is too long (max 255 characters).");
         }
         User user = resolveUser(userEmail);
+        if (taskRepository.countByUserId(user.getId()) >= MAX_TASKS_PER_USER) {
+            throw new BadRequestException("You have reached the maximum of " + MAX_TASKS_PER_USER + " tasks. Delete some tasks before adding more.");
+        }
         Task task = Task.builder()
                 .user(user)
                 .title(title)

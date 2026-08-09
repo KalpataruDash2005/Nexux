@@ -12,6 +12,8 @@ public interface PlacementMessageRepository extends JpaRepository<PlacementMessa
 
     long countBySessionId(String sessionId);
 
+    void deleteBySessionId(String sessionId);
+
     long countByOwnerIdAndRole(String ownerId, String role);
 
     long countByOwnerIdAndRoleAndCreatedAtGreaterThanEqual(String ownerId, String role, LocalDateTime from);

@@ -4,6 +4,7 @@ import { Home, BookOpen, Briefcase, Search, Bell, Command, Folder, LogOut, Check
 import { StudentProfileDto } from '../types/profile';
 import { getWorkspaces, Workspace } from '../services/workspaceService';
 import { getTasks, getTaskSummary, Task, TaskSummary } from '../services/taskService';
+import { semanticSearch, SearchResult } from '../services/searchService';
 import { sendPendingWorkReminder } from '../services/notificationService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from './ui/Toast';
@@ -23,6 +24,9 @@ const TopNav: React.FC = () => {
   const [taskList, setTaskList] = useState<Task[]>([]);
   const [bellSending, setBellSending] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
+  const [semanticResults, setSemanticResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadPending = async () => {
     try {
@@ -101,6 +105,9 @@ const TopNav: React.FC = () => {
     if (profile?.firstName) {
       return `${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}`;
     }
+    if (user?.name) {
+      return user.name;
+    }
     if (user?.email) {
       return user.email.split('@')[0] || 'there';
     }
@@ -119,10 +126,8 @@ const TopNav: React.FC = () => {
     }
     const name = displayName();
     return name ? name.charAt(0).toUpperCase() : 'U';
-  };
-
-  const trimmedQuery = query.trim().toLowerCase();
-  const results = trimmedQuery
+  };  const trimmedQuery = query.trim().toLowerCase();
+  const workspaceResults = trimmedQuery
     ? workspaces
         .filter((ws) =>
           ws.name.toLowerCase().includes(trimmedQuery) ||
@@ -130,12 +135,52 @@ const TopNav: React.FC = () => {
         )
         .slice(0, 6)
     : [];
+  const results = workspaceResults;
+  const showSemantic = trimmedQuery && semanticResults.length > 0;
 
   const openResult = (ws: Workspace) => {
     setQuery('');
     setFocused(false);
     navigate(`/workspaces/${ws.id}`);
   };
+
+  const openSemanticResult = (r: SearchResult) => {
+    const ws = workspaces.find((w) => w.id === r.documentId.split(':')[0] || w.id === r.documentId);
+    setQuery('');
+    setFocused(false);
+    if (ws) {
+      navigate(`/workspaces/${ws.id}`);
+    }
+  };
+
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!trimmedQuery || workspaces.length === 0) {
+      setSemanticResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      const batches = await Promise.allSettled(
+        workspaces.slice(0, 3).map((ws) => semanticSearch(ws.id, trimmedQuery, 3))
+      );
+      const collected: SearchResult[] = [];
+      batches.forEach((b, i) => {
+        if (b.status === 'fulfilled') {
+          b.value.forEach((r) => {
+            collected.push({ ...r, documentId: `${workspaces[i].id}:${r.documentId}` });
+          });
+        }
+      });
+      collected.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      setSemanticResults(collected.slice(0, 5));
+      setSearching(false);
+    }, 400);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [trimmedQuery, workspaces]);
 
   return (
     <nav className="h-16 border-b bg-white flex items-center justify-between px-6 shrink-0">
@@ -211,24 +256,56 @@ const TopNav: React.FC = () => {
 
           {focused && trimmedQuery && (
             <div className="absolute top-12 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
-              {results.length === 0 ? (
-                <p className="px-4 py-3 text-sm text-gray-400">No workspaces match "{query}".</p>
+              {searching ? (
+                <div className="flex items-center gap-2 px-4 py-3 text-sm text-gray-400">
+                  <Loader2 size={14} className="animate-spin" />
+                  Searching your notes...
+                </div>
+              ) : results.length === 0 && !showSemantic ? (
+                <p className="px-4 py-3 text-sm text-gray-400">No matches for "{query}".</p>
               ) : (
-                results.map((ws) => (
-                  <button
-                    key={ws.id}
-                    onClick={() => openResult(ws)}
-                    className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-primary-tint transition-colors"
-                  >
-                    <div className="w-8 h-8 bg-primary-tint rounded-lg flex items-center justify-center text-primary shrink-0">
-                      <Folder size={15} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{ws.name}</p>
-                      <p className="text-xs text-gray-400 truncate">{ws.description || 'No description'}</p>
-                    </div>
-                  </button>
-                ))
+                <div className="max-h-80 overflow-y-auto">
+                  {results.length > 0 && (
+                    <>
+                      <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">Workspaces</p>
+                      {results.map((ws) => (
+                        <button
+                          key={ws.id}
+                          onClick={() => openResult(ws)}
+                          className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-primary-tint transition-colors"
+                        >
+                          <div className="w-8 h-8 bg-primary-tint rounded-lg flex items-center justify-center text-primary shrink-0">
+                            <Folder size={15} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{ws.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{ws.description || 'No description'}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  {showSemantic && (
+                    <>
+                      <p className="px-4 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">In your notes</p>
+                      {semanticResults.map((r) => (
+                        <button
+                          key={r.documentId}
+                          onClick={() => openSemanticResult(r)}
+                          className="w-full flex items-start space-x-3 px-4 py-3 text-left hover:bg-primary-tint transition-colors"
+                        >
+                          <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-500 shrink-0">
+                            <BookOpen size={15} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{r.documentName}</p>
+                            <p className="text-xs text-gray-400 line-clamp-2">{r.content}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
               )}
             </div>
           )}

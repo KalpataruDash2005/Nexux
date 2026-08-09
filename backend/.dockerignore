@@ -1,0 +1,15 @@
+.git
+.gitignore
+.railwayignore
+.idea
+*.iml
+target/
+apache-maven-*/
+storage/
+*.log
+start-*.cmd
+run.cmd
+.env
+.env.example
+*.pdf
+[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*/

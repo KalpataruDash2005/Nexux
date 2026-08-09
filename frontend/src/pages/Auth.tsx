@@ -37,13 +37,13 @@ const Auth: React.FC = () => {
         try {
             if (isLogin) {
                 const response = await apiLogin({ email, password });
-                login(response.token, { email, role: response.role || 'STUDENT' });
+                login(response.token, { email, role: response.role || 'STUDENT', name: response.name });
                 navigate(response.role?.toUpperCase() === 'ADMIN' ? '/admin-dashboard' : '/dashboard');
             } else {
-                await register({ email, password, role: 'STUDENT' });
+                await register({ email, password, role: 'STUDENT', name });
                 // Automatically log them in after registration
                 const loginRes = await apiLogin({ email, password });
-                login(loginRes.token, { email, role: 'STUDENT' });
+                login(loginRes.token, { email, role: 'STUDENT', name: loginRes.name || name });
                 navigate('/onboarding');
             }
         } catch (err: any) {

@@ -1,8 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './LandingPage.css';
 
 const PricingPage: React.FC = () => {
+    useEffect(() => {
+        const els = document.querySelectorAll('.reveal, .reveal-stagger');
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach(en => {
+                if (en.isIntersecting) { en.target.classList.add('visible'); io.unobserve(en.target); }
+            });
+        }, { threshold: 0.15 });
+        els.forEach(el => io.observe(el));
+        return () => io.disconnect();
+    }, []);
     const plan = (tier: string, price: string, desc: string, items: string[], badge?: string) => (
         <div className={`glass-card price-card ${badge ? 'featured' : ''}`}>
             {badge && <div className="price-badge">{badge}</div>}

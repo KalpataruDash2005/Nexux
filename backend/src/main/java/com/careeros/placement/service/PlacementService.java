@@ -324,6 +324,14 @@ public class PlacementService {
         return new EndSessionResponse(score, session.getSummary(), (int) messageRepository.countBySessionId(session.getId()));
     }
 
+    @Transactional
+    public void deleteSession(String ownerEmail, String id) {
+        PlacementSession session = requireSession(ownerEmail, id);
+        messageRepository.deleteBySessionId(session.getId());
+        sessionRepository.delete(session);
+        invalidateStrategyCaches(ownerEmail);
+    }
+
     public List<PlacementSessionDto> getSessions(String ownerEmail) {
         User owner = resolveOwner(ownerEmail);
         return sessionRepository.findByOwnerIdOrderByCreatedAtDesc(owner.getId()).stream()

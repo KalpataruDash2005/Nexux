@@ -51,6 +51,9 @@ const Dashboard: React.FC = () => {
     if (profile?.firstName) {
       return `${profile.firstName}${profile.lastName ? ' ' + profile.lastName : ''}`;
     }
+    if (user?.name) {
+      return user.name;
+    }
     if (user?.email) {
       return user.email.split('@')[0] || 'there';
     }

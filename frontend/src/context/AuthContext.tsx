@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         // Protect routes that are not public
-        const publicRoutes = ['/', '/auth', '/oauth2/callback', '/onboarding'];
+        const publicRoutes = ['/', '/auth', '/auth/', '/oauth2/callback', '/onboarding', '/pricing', '/pricing/'];
         if (!token && !publicRoutes.includes(location.pathname)) {
             navigate('/auth');
         }

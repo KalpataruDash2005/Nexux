@@ -12,19 +12,62 @@ const LandingPage: React.FC = () => {
     const [feedbackSent, setFeedbackSent] = useState(false);
     const [feedbackSending, setFeedbackSending] = useState(false);
     const [feedbackError, setFeedbackError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<{ name?: string; email?: string; message?: string }>({});
+
+    const NAME_MAX = 100;
+    const EMAIL_MAX = 200;
+    const MESSAGE_MAX = 2000;
+    const NAME_REGEX = /^[A-Za-z\s.'-]+$/;
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+    const validateFeedback = (data: { name: string; email: string; message: string }) => {
+        const errs: { name?: string; email?: string; message?: string } = {};
+        const name = data.name.trim();
+        const email = data.email.trim();
+        const message = data.message.trim();
+        if (!name) {
+            errs.name = 'Please enter your name.';
+        } else if (name.length > NAME_MAX) {
+            errs.name = `Name must be ${NAME_MAX} characters or fewer.`;
+        } else if (!NAME_REGEX.test(name)) {
+            errs.name = 'Name can only contain letters and spaces (no numbers or special symbols).';
+        }
+        if (!email) {
+            errs.email = 'Please enter your email.';
+        } else if (email.length > EMAIL_MAX) {
+            errs.email = `Email must be ${EMAIL_MAX} characters or fewer.`;
+        } else if (!EMAIL_REGEX.test(email)) {
+            errs.email = 'Please enter a valid email address (e.g. you@gmail.com).';
+        }
+        if (!message) {
+            errs.message = 'Please enter your feedback.';
+        } else if (message.length > MESSAGE_MAX) {
+            errs.message = `Feedback must be ${MESSAGE_MAX} characters or fewer.`;
+        } else if (message.length < 10) {
+            errs.message = 'Feedback must be at least 10 characters.';
+        }
+        return errs;
+    };
 
     const handleFeedbackSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setFeedbackError('');
-        setFeedbackSending(true);
+        setFieldErrors({});
         const form = e.currentTarget;
         const data = new FormData(form);
+        const payload = {
+            name: String(data.get('name') || ''),
+            email: String(data.get('email') || ''),
+            message: String(data.get('message') || ''),
+        };
+        const errs = validateFeedback(payload);
+        if (Object.keys(errs).length > 0) {
+            setFieldErrors(errs);
+            return;
+        }
+        setFeedbackSending(true);
         try {
-            await submitFeedback({
-                name: String(data.get('name') || ''),
-                email: String(data.get('email') || ''),
-                message: String(data.get('message') || ''),
-            });
+            await submitFeedback(payload);
             setFeedbackSent(true);
         } catch {
             setFeedbackError('Could not send your feedback right now. Please try again.');
@@ -366,15 +409,18 @@ const LandingPage: React.FC = () => {
                                 )}
                                 <div>
                                     <label className="block text-sm text-[#8E93A0] mb-2 text-left">Your Name</label>
-                                    <input type="text" name="name" required className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white" placeholder="John Doe" />
+                                    <input type="text" name="name" required maxLength={100} className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white" placeholder="John Doe" />
+                                    {fieldErrors.name && <p className="mt-1 text-xs text-rose-300 text-left">{fieldErrors.name}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm text-[#8E93A0] mb-2 text-left">Your Email</label>
-                                    <input type="email" name="email" required className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white" placeholder="student@university.edu" />
+                                    <input type="email" name="email" required maxLength={200} className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white" placeholder="you@gmail.com" />
+                                    {fieldErrors.email && <p className="mt-1 text-xs text-rose-300 text-left">{fieldErrors.email}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm text-[#8E93A0] mb-2 text-left">Feedback</label>
-                                    <textarea name="message" required rows={4} className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white resize-none" placeholder="What can we do better?"></textarea>
+                                    <textarea name="message" required rows={4} maxLength={2000} className="w-full bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.09)] rounded-lg px-4 py-3 focus:border-[#3E7BFF] focus:outline-none text-white resize-none" placeholder="What can we do better?"></textarea>
+                                    {fieldErrors.message && <p className="mt-1 text-xs text-rose-300 text-left">{fieldErrors.message}</p>}
                                 </div>
                                 <button type="submit" disabled={feedbackSending} className="btn btn-primary mt-6 self-end disabled:opacity-50" style={{width: '100%'}}>{feedbackSending ? 'Sending...' : 'Submit Feedback'}</button>
                             </form>

@@ -27,6 +27,14 @@ public class FeedbackController {
     @Value("${app.feedback.recipient:nexuxstudio19@gmail.com}")
     private String recipient;
 
+    private static final int NAME_MAX = 100;
+    private static final int EMAIL_MAX = 200;
+    private static final int MESSAGE_MAX = 2000;
+    private static final java.util.regex.Pattern NAME_PATTERN =
+            java.util.regex.Pattern.compile("^[A-Za-z\\s.'-]+$");
+    private static final java.util.regex.Pattern EMAIL_PATTERN =
+            java.util.regex.Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$");
+
     @PostMapping
     public ResponseEntity<Map<String, String>> submit(@RequestBody FeedbackRequestDto request) {
         String name = request.getName() == null ? "" : request.getName().trim();
@@ -35,6 +43,24 @@ public class FeedbackController {
 
         if (email.isEmpty() || message.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Email and message are required."));
+        }
+        if (name.length() > NAME_MAX) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Name must be " + NAME_MAX + " characters or fewer."));
+        }
+        if (!NAME_PATTERN.matcher(name).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Name can only contain letters and spaces (no numbers or special symbols)."));
+        }
+        if (email.length() > EMAIL_MAX) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email must be " + EMAIL_MAX + " characters or fewer."));
+        }
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Please enter a valid email address."));
+        }
+        if (message.length() > MESSAGE_MAX) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Feedback must be " + MESSAGE_MAX + " characters or fewer."));
+        }
+        if (message.length() < 10) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Feedback must be at least 10 characters."));
         }
 
         FeedbackSubmission submission = FeedbackSubmission.builder()

@@ -85,6 +85,10 @@ const Tasks: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) return;
+    if (summary.total >= 500) {
+      setError('You have reached the maximum of 500 tasks. Delete some tasks before adding more.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -101,10 +105,8 @@ const Tasks: React.FC = () => {
 
   const handleToggle = async (task: Task) => {
     const next: TaskStatus = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
-    const wasCompleted = task.status === 'COMPLETED';
-    const wasPending = task.status === 'PENDING';
-    const completedDelta = wasCompleted ? -1 : next === 'COMPLETED' ? 1 : 0;
-    const pendingDelta = wasPending ? (next === 'COMPLETED' ? -1 : 1) : 0;
+    const completedDelta = next === 'COMPLETED' ? 1 : -1;
+    const pendingDelta = next === 'PENDING' ? 1 : -1;
     setTogglingId(task.id);
     setError(null);
     try {
@@ -112,8 +114,8 @@ const Tasks: React.FC = () => {
       setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
       setSummary((prev) => ({
         ...prev,
-        completed: prev.completed + completedDelta,
-        pending: prev.pending + pendingDelta,
+        completed: Math.max(0, prev.completed + completedDelta),
+        pending: Math.max(0, prev.pending + pendingDelta),
       }));
     } catch (err) {
       setError(errorMessage(err, 'Could not update the task.'));
@@ -222,6 +224,7 @@ const Tasks: React.FC = () => {
                     type="text"
                     value={form.title}
                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    maxLength={255}
                     placeholder="What do you need to do?"
                     className="flex-1 rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />

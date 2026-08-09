@@ -106,6 +106,12 @@ public class PlacementController {
         return ResponseEntity.ok(placementService.endSession(getCurrentUserEmail(), id));
     }
 
+    @DeleteMapping("/sessions/{id}")
+    public ResponseEntity<Void> deleteSession(@PathVariable String id) {
+        placementService.deleteSession(getCurrentUserEmail(), id);
+        return ResponseEntity.noContent().build();
+    }
+
     // ------------------------------------------------------------------
     // Coding
     // ------------------------------------------------------------------

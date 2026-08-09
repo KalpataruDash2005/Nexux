@@ -17,4 +17,7 @@ public class RegisterRequestDto {
 
     @NotBlank(message = "Role is required")
     private String role; // e.g., STUDENT, RECRUITER, ADMIN
+
+    @Size(max = 100, message = "Name must be 100 characters or fewer")
+    private String name;
 }

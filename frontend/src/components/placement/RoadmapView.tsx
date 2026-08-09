@@ -19,10 +19,11 @@ function formatGeneratedAt(value?: string): string {
 }
 
 const Checklist: React.FC<{ items: string[] }> = ({ items }) => {
-  if (items.length === 0) return <p className="text-sm text-muted">Nothing planned yet.</p>;
+  const unique = Array.from(new Set(items.filter((i) => i && i.trim())));
+  if (unique.length === 0) return <p className="text-sm text-muted">Nothing planned yet.</p>;
   return (
     <ul className="space-y-2">
-      {items.map((item, i) => (
+      {unique.map((item, i) => (
         <li key={i} className="flex items-start gap-2 text-sm text-foreground">
           <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-600" />
           <span>{item}</span>

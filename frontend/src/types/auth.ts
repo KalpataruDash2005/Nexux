@@ -7,6 +7,7 @@ export interface RegisterRequestDto {
   email: string;
   password: string;
   role: 'STUDENT' | 'RECRUITER' | 'ADMIN';
+  name?: string;
 }
 
 export interface AuthResponseDto {
@@ -14,4 +15,5 @@ export interface AuthResponseDto {
   type: string;
   email: string;
   role: string;
+  name?: string;
 }

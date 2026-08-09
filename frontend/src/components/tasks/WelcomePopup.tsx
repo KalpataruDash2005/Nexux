@@ -28,6 +28,7 @@ const WelcomePopup: React.FC<Props> = ({ onOpenTasks }) => {
   }, []);
 
   const displayName = () => {
+    if (user?.name) return user.name;
     if (user?.firstName) return user.firstName;
     if (user?.email) return user.email.split('@')[0] || 'there';
     return 'there';

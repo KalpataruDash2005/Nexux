@@ -470,6 +470,14 @@ export async function getSessions(): Promise<PlacementSession[]> {
   }
 }
 
+export async function deleteSession(id: string): Promise<void> {
+  try {
+    await apiClient.delete(`${base}/sessions/${id}`);
+  } catch (err) {
+    throw new Error(errorMessage(err, 'Could not delete the session.'));
+  }
+}
+
 export async function getSession(id: string): Promise<SessionDetail> {
   try {
     const res = await apiClient.get<SessionDetail>(`${base}/sessions/${id}`);
