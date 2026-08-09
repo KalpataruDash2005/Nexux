@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Command, LogOut, LayoutDashboard, MessageSquareText, FileQuestion } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -29,7 +29,7 @@ const AdminLayout: React.FC = () => {
     <div className="flex h-screen flex-col bg-background text-foreground">
       <nav className="flex h-16 shrink-0 items-center justify-between border-b bg-white px-6">
         <div className="flex items-center space-x-8">
-          <div className="flex items-center space-x-3">
+          <Link to="/" className="flex items-center space-x-3" aria-label="Nexora home">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center">
               <div className="flex h-full w-full items-center justify-center rounded-lg bg-gradient-to-br from-sky-400 to-indigo-500">
                 <Command size={16} className="text-white" />
@@ -39,7 +39,7 @@ const AdminLayout: React.FC = () => {
             <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-red-600">
               Admin
             </span>
-          </div>
+          </Link>
           <div className="flex space-x-1">
             {link('/admin-dashboard', <LayoutDashboard size={18} />, 'Overview', 'overview')}
             {link('/admin-dashboard?tab=feedback', <MessageSquareText size={18} />, 'Feedback', 'feedback')}

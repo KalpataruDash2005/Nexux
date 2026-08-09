@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom';
 import './LandingPage.css';
 import { submitFeedback } from '../services/feedbackService';
 import PromoVideoMarquee from '../components/PromoVideoMarquee';
+import { useAuth } from '../context/AuthContext';
 
 const LandingPage: React.FC = () => {
+    const { isAuthenticated } = useAuth();
+    const dashboardTarget = isAuthenticated ? '/dashboard' : '/auth';
     const [feedbackSent, setFeedbackSent] = useState(false);
     const [feedbackSending, setFeedbackSending] = useState(false);
     const [feedbackError, setFeedbackError] = useState('');
@@ -179,12 +182,12 @@ const LandingPage: React.FC = () => {
             <div className="content">
                 <nav id="navbar">
                 <div className="wrap nav-inner">
-                    <div className="logo"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</div>
+                    <Link to="/" className="logo" aria-label="Nexora home"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</Link>
                     <div className="nav-links">
                     <a href="#features">Product</a>
                     <a href="#agents">Agents</a>
-                    <a href="#dashboard">Dashboard</a>
-                    <a href="#pricing">Pricing</a>
+                    <Link to={dashboardTarget}>Dashboard</Link>
+                    <Link to="/pricing">Pricing</Link>
                     <a href="#faq">FAQ</a>
                     </div>
                     <div className="nav-cta-group">
@@ -196,7 +199,7 @@ const LandingPage: React.FC = () => {
 
                 <section id="hero">
                 <div className="hero-video-bg">
-                    <video src="/videos/Video%20Project%201.mp4" poster="/videos/hero-poster.jpg" autoPlay muted loop playsInline preload="metadata" ref={(el) => { if (el) el.playbackRate = 0.55; }}></video>
+                    <video src="/videos/hero-bg.mp4" poster="/videos/hero-poster.jpg" autoPlay muted loop playsInline preload="auto" ref={(el) => { if (el) { el.muted = true; el.playbackRate = 1; } }}></video>
                     <div className="hero-video-overlay"></div>
                     <div className="hero-readability"></div>
                 </div>
@@ -402,12 +405,12 @@ const LandingPage: React.FC = () => {
                 <div className="wrap">
                     <div className="footer-top">
                     <div className="footer-brand">
-                        <div className="logo"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</div>
+                        <Link to="/" className="logo" aria-label="Nexora home"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</Link>
                         <p>The AI operating system running quietly beneath academic and placement life  tasks, workspaces, resume and interviews in one place, for students who'd rather build than chase.</p>
                     </div>
                     <div className="footer-col">
                         <h4>Product</h4>
-                        <a href="#features">Modules</a><a href="#agents">Agents</a><a href="#pricing">Pricing</a>
+                        <a href="#features">Modules</a><a href="#agents">Agents</a><Link to="/pricing">Pricing</Link>
                     </div>
                     <div className="footer-col">
                         <h4>Company</h4>

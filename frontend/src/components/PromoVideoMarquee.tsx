@@ -4,7 +4,7 @@ import React from 'react';
 const PROMO_VIDEOS: string[] = [
   '/videos/Create_a_premium_cinematic_pro.mp4',
   '/videos/Create_a_premium_cinematic_pro%20(1).mp4',
-  '/videos/Video%20Project%201.mp4',
+  '/videos/hero-bg.mp4',
 ];
 
 const PromoVideoMarquee: React.FC = () => {
@@ -30,7 +30,8 @@ const PromoVideoMarquee: React.FC = () => {
                   muted
                   loop
                   playsInline
-                  preload="auto"
+                  preload="metadata"
+                  ref={(el) => { if (el) el.muted = true; }}
                 >
                   Your browser does not support embedded videos.
                 </video>

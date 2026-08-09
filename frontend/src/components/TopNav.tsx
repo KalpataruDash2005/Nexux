@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { Home, BookOpen, Briefcase, Search, Bell, Command, Folder, LogOut, CheckSquare, AlertTriangle, Clock, MailCheck, Loader2 } from 'lucide-react';import { getMyProfile } from '../services/profileService';
 import { StudentProfileDto } from '../types/profile';
 import { getWorkspaces, Workspace } from '../services/workspaceService';
@@ -141,7 +141,7 @@ const TopNav: React.FC = () => {
     <nav className="h-16 border-b bg-white flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center space-x-8">
         {/* Logo */}
-        <div className="flex items-center space-x-3">
+        <Link to="/" className="flex items-center space-x-3" aria-label="Nexora home">
           <div className="w-8 h-8 relative flex items-center justify-center shrink-0">
             <div className="absolute inset-0 border-t-2 border-l-2 border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></div>
             <div className="absolute inset-0 border-b-2 border-r-2 border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></div>
@@ -150,7 +150,7 @@ const TopNav: React.FC = () => {
             </span>
           </div>
           <span className="font-extrabold text-xl tracking-wide text-slate-850">Nexora</span>
-        </div>
+        </Link>
 
         {/* Links */}
         <div className="flex space-x-1">

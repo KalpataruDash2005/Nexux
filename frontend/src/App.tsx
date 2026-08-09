@@ -9,6 +9,7 @@ import Placement from './pages/Placement';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import LandingPage from './pages/LandingPage';
+import PricingPage from './pages/PricingPage';
 import Auth from './pages/Auth';
 import Onboarding from './pages/Onboarding';
 import OAuth2Callback from './pages/OAuth2Callback';
@@ -51,6 +52,7 @@ const App: React.FC = () => {
             {/* Public Routes */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<LandingPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/oauth2/callback" element={<OAuth2Callback />} />
               <Route path="/onboarding" element={<Onboarding />} />
