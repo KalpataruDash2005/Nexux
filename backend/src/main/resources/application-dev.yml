@@ -59,6 +59,10 @@ app:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.groq.com/openai/v1}
     model: ${OPENAI_MODEL:llama-3.1-8b-instant}
+  resend:
+    api-key: ${RESEND_API_KEY:}
+    from: ${RESEND_FROM:noreply@careeros.com}
+    api-url: ${RESEND_API_URL:https://api.resend.com/emails}
   pdf-assistant:
     n8n-enabled: ${PDF_ASSISTANT_N8N_ENABLED:true}
     n8n-webhook-url: ${N8N_WEBHOOK_URL:http://localhost:5678}
