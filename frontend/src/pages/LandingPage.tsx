@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 const LandingPage: React.FC = () => {
     const { isAuthenticated } = useAuth();
     const dashboardTarget = isAuthenticated ? '/dashboard' : '/auth';
+    const [mobileOpen, setMobileOpen] = useState(false);
     const [feedbackSent, setFeedbackSent] = useState(false);
     const [feedbackSending, setFeedbackSending] = useState(false);
     const [feedbackError, setFeedbackError] = useState('');
@@ -180,17 +181,20 @@ const LandingPage: React.FC = () => {
             <div id="cursor-glow"></div>
 
             <div className="content">
-                <nav id="navbar">
+                <nav id="navbar" className={'landing-nav' + (mobileOpen ? ' mobile-open' : '')}>
                 <div className="wrap nav-inner">
                     <Link to="/" className="logo" aria-label="Nexora home"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</Link>
-                    <div className="nav-links">
+                    <button className="nav-toggle" aria-label="Toggle menu" aria-expanded={mobileOpen} onClick={() => setMobileOpen((o) => !o)}>
+                        <span></span><span></span><span></span>
+                    </button>
+                    <div className="nav-links" onClick={() => setMobileOpen(false)}>
                     <a href="#features">Product</a>
                     <a href="#agents">Agents</a>
                     <Link to={dashboardTarget}>Dashboard</Link>
                     <Link to="/pricing">Pricing</Link>
                     <a href="#faq">FAQ</a>
                     </div>
-                    <div className="nav-cta-group">
+                    <div className="nav-cta-group" onClick={() => setMobileOpen(false)}>
                     <Link to="/auth" className="nav-signin">Sign in</Link>
                     <Link to="/auth?mode=signup" className="btn btn-primary btn-sm">Launch Nexora</Link>
                     </div>
@@ -212,7 +216,13 @@ const LandingPage: React.FC = () => {
                     <a href="#agents" className="btn btn-ghost">See how it works</a>
                     </div>
 
-                    <div className="dashboard-preview mt-64 mb-20 relative w-full max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                    <div className="hero-intro reveal">
+                        <span className="eyebrow" style={{justifyContent: 'center'}}>First appearance</span>
+                        <h2 className="hero-intro-title">Meet your command center</h2>
+                        <p className="hero-intro-sub">This is the first screen you'll see right after signing in — tasks, academics, placement readiness and interviews all reporting back to a single intelligent core.</p>
+                    </div>
+
+                    <div className="dashboard-preview mt-12 mb-20 relative w-full max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000">
                         <div className="dashboard-frame">
                             <div className="dashboard-bar">
                                 <span className="dot r"></span><span className="dot y"></span><span className="dot g"></span>

@@ -40,8 +40,8 @@ const PricingPage: React.FC = () => {
                     <div className="wrap">
                         <div className="section-head reveal">
                             <span className="eyebrow" style={{justifyContent: 'center'}}>Pricing</span>
-                            <h1 style={{ fontSize: 'clamp(30px,4vw,46px)', marginTop: '16px' }}>Get it free. Forever.</h1>
-                            <p>Nexora is free for students. Every module, every agent, no subscription required.</p>
+                            <h1 style={{ fontSize: 'clamp(30px,4vw,46px)', marginTop: '16px' }}>It&apos;s free for you. Forever.</h1>
+                            <p>No credit card, no trial timer, no hidden limits. Nexora is 100% free for every student — every module, every agent, everything included.</p>
                         </div>
                         <div className="pricing-grid reveal-stagger">
                             {plan(
