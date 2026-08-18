@@ -42,7 +42,7 @@ app:
   openai:
     api-key: test-key
     base-url: https://api.groq.com/openai/v1
-    model: llama-3.1-8b-instant
+    model: openai/gpt-oss-120b
   pdf-assistant:
     n8n-enabled: false
     n8n-webhook-url: http://localhost:5678

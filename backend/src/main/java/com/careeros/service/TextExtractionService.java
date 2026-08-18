@@ -1,6 +1,7 @@
 package com.careeros.service;
 
 import com.careeros.exception.BadRequestException;
+import dev.langchain4j.data.document.BlankDocumentException;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.parser.apache.pdfbox.ApachePdfBoxDocumentParser;
 import dev.langchain4j.data.document.parser.apache.tika.ApacheTikaDocumentParser;
@@ -55,9 +56,9 @@ public class TextExtractionService {
     }
 
     private Document extractPdf(Path path, int maxOcrPages) throws IOException {
-        Document doc = new ApachePdfBoxDocumentParser().parse(new FileSystemSource(path).inputStream());
-        if (isMeaningful(doc.text())) {
-            return Document.from(cleanWatermarks(doc.text()));
+        String pdfBoxText = extractWithPdfBox(path);
+        if (isMeaningful(pdfBoxText)) {
+            return Document.from(cleanWatermarks(pdfBoxText));
         }
 
         log.warn("PDFBox extracted little usable text from {}, falling back to OCR", path);
@@ -73,6 +74,18 @@ public class TextExtractionService {
             ocrDoc.metadata().put("page_count", pdf.getNumberOfPages());
         }
         return ocrDoc;
+    }
+
+    private String extractWithPdfBox(Path path) {
+        try {
+            Document doc = new ApachePdfBoxDocumentParser().parse(new FileSystemSource(path).inputStream());
+            return doc.text();
+        } catch (BlankDocumentException e) {
+            return "";
+        } catch (Exception e) {
+            log.warn("PDFBox parsing failed for {}, treating as scanned image: {}", path, e.getMessage());
+            return "";
+        }
     }
 
     private String ocrPdfCached(Path path, int maxOcrPages) throws IOException {
@@ -179,8 +192,9 @@ public class TextExtractionService {
         List<String> candidates = new ArrayList<>();
         String pathEnv = System.getenv("PATH");
         if (pathEnv != null) {
-            for (String dir : pathEnv.split(";")) {
+            for (String dir : pathEnv.split(java.util.regex.Pattern.quote(File.pathSeparator))) {
                 if (!dir.isBlank()) {
+                    candidates.add(dir + File.separator + "tesseract");
                     candidates.add(dir + File.separator + "tesseract.exe");
                 }
             }

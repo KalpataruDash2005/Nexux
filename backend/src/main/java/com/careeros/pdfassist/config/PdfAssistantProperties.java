@@ -56,6 +56,6 @@ public class PdfAssistantProperties {
     @Value("${app.openai.base-url:https://api.groq.com/openai/v1}")
     private String llmBaseUrl;
 
-    @Value("${app.openai.model:llama-3.1-8b-instant}")
+    @Value("${app.openai.model:openai/gpt-oss-120b}")
     private String llmModel;
 }

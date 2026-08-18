@@ -32,7 +32,7 @@ public class AiNotificationService {
     @Value("${app.openai.api-url:https://api.groq.com/openai/v1/chat/completions}")
     private String openAiApiUrl;
 
-    @Value("${app.openai.model:llama-3.3-70b-versatile}")
+    @Value("${app.openai.model:openai/gpt-oss-120b}")
     private String openAiModel;
 
     public void processAndSendNotification(NotificationRequestDto requestDto) {

@@ -33,7 +33,7 @@ services:
       - N8N_EMBEDDING_MODEL=${N8N_EMBEDDING_MODEL:-text-embedding-3-small}
       - N8N_LLM_BASE_URL=${N8N_LLM_BASE_URL:-https://api.groq.com/openai/v1}
       - N8N_LLM_API_KEY=${OPENAI_API_KEY}
-      - N8N_LLM_MODEL=${N8N_LLM_MODEL:-llama-3.1-8b-instant}
+      - N8N_LLM_MODEL=${N8N_LLM_MODEL:-openai/gpt-oss-120b}
       - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
       - BACKEND_URL=${BACKEND_URL:-http://backend:8081}
       - PDF_ASSISTANT_INTERNAL_KEY=${PDF_ASSISTANT_INTERNAL_KEY:-careeros-pdf-internal}

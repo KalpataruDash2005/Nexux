@@ -35,6 +35,12 @@ public class QdrantConfig {
     @Value("${app.openai.api-key:your_default_key_here}")
     private String groqApiKey; // The user is using Groq via the OpenAI variable
 
+    @Value("${app.openai.base-url:https://api.groq.com/openai/v1}")
+    private String groqBaseUrl;
+
+    @Value("${app.openai.model:openai/gpt-oss-120b}")
+    private String groqModel;
+
     @PostConstruct
     public void ensureCollectionExists() {
         try {
@@ -77,9 +83,9 @@ public class QdrantConfig {
     public ChatLanguageModel chatLanguageModel() {
         // Use Groq's OpenAI compatible API
         return OpenAiChatModel.builder()
-                .baseUrl("https://api.groq.com/openai/v1")
+                .baseUrl(groqBaseUrl)
                 .apiKey(groqApiKey)
-                .modelName("llama-3.1-8b-instant") // Fast Groq model
+                .modelName(groqModel)
                 .maxTokens(4096)
                 .timeout(java.time.Duration.ofSeconds(120))
                 .maxRetries(2)

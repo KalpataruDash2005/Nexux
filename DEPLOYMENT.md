@@ -55,7 +55,7 @@ OAUTH_COOKIE_SECRET=<random 32+ bytes>
 # AI (optional but recommended)
 OPENAI_API_KEY=…              # OpenRouter/Groq/OpenAI compatible key
 OPENAI_BASE_URL=https://api.groq.com/openai/v1
-OPENAI_MODEL=llama-3.1-8b-instant
+OPENAI_MODEL=openai/gpt-oss-120b
 GEMINI_API_KEY=…
 QDRANT_HOST=…
 QDRANT_PORT=6334

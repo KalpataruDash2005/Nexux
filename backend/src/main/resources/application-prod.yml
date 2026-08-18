@@ -57,7 +57,7 @@ app:
   openai:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.groq.com/openai/v1}
-    model: ${OPENAI_MODEL:llama-3.1-8b-instant}
+    model: ${OPENAI_MODEL:openai/gpt-oss-120b}
   resend:
     api-key: ${RESEND_API_KEY:}
     from: ${RESEND_FROM:noreply@careeros.com}
