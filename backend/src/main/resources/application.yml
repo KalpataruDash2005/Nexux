@@ -6,7 +6,7 @@ spring:
   application:
     name: careeros-backend
 server:
-  port: ${PORT:8081}
+  port: ${PORT:8080}
   forward-headers-strategy: framework
 app:
   oauth:

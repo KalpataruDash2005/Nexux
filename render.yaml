@@ -1,0 +1,75 @@
+# render.yaml – Deploy the CareerOS backend on Render via Docker.
+# This file should be placed at the repository root and committed.
+# Render will use the ./Dockerfile in the repo to build the container.
+# All environment variables are listed below; add missing ones in the Render dashboard.
+
+services:
+  - type: web
+    name: careeros-backend
+    # Free tier will sleep after ~15 min of inactivity; upgrade to Starter/Hobby for always-on.
+    env: docker
+    # plan: starter   # uncomment if you upgrade from free
+    autoDeploy: true
+
+    # Docker build uses the Dockerfile at the repo root.
+    # We removed the conflicting HEALTHCHECK so Railway/Docker won't kill the container.
+    # See: https://render.com/docs/docker#dockerfile
+    source: .
+
+    # Environment variables – required for the app to function.
+    # Create these in the Render dashboard (Project Settings → Environment)
+    # or keep them secret and reference them here via \${VAR} if using a .env file.
+    env:
+      # OpenAI / Groq LLM configuration
+      - OPENAI_API_KEY
+      - OPENAI_BASE_URL=https://api.groq.com/openai/v1
+      - OPENAI_MODEL=openai/gpt-oss-120b
+
+      # Supabase PostgreSQL (same DB as on Railway)
+      - DB_HOST=aws-0-ap-northeast-1.pooler.supabase.com
+      - DB_PORT=5432
+      - DB_NAME=postgres
+      - DB_USER=postgres.zmvxyvvzjxuswlkvbdyy
+      - DB_PASSWORD=CareerosProd2026xQ
+
+      # JWT & auth
+      - JWT_SECRET=K46NoJORadpXiB0wYLHKt2Z2GqPOs21OOWyLBGPa5CgypnS3LCik4d8Sx4wcLL
+
+      # Email (Resend)
+      - MAIL_USERNAME=nexuxstudio19@gmail.com
+      - MAIL_PASSWORD=zzkd inny imfq ptpo
+      - MAIL_PORT=465
+      - MAIL_SMTP_SSL=true
+      - MAIL_SMTP_STARTTLS=false
+      - MAIL_SMTP_TIMEOUT=15000
+
+      # Gemini API (optional – used by some features)
+      - GEMINI_API_KEY=AQ.Ab8RN6J-IZ0iB7DcAEIVb7bc2AZqbmnFJXYkHn1GbQ7aLZTHQQ
+
+      # Railway‑specific vars that can be left empty or set as needed
+      - CAREEROS_ADMIN_EMAIL=admin@careeros.app
+      - CAREEROS_ADMIN_PASSWORD=LNR2NkrOKp6Rkv8FR7i0QBPO
+
+      # n8n & PDF assistant
+      - N8N_WEBHOOK_URL=http://localhost:5678
+      - PDF_ASSISTANT_INTERNAL_KEY=careos-pdf-internal
+      - PDF_ASSISTANT_N8N_ENABLED=false
+
+      # Qdrant vector DB – currently on Railway; add Qdrant connection vars
+      # if you provision a separate Qdrant instance, otherwise keep Railway Qdrant reachable.
+      - QDRANT_HOST=qdrant.railway.internal
+      - QDRANT_PORT=6334
+      - QDRANT_REST_PORT=6333
+
+      # Railway env markers (optional)
+      - RAILWAY_ENVIRONMENT=production
+      - RAILWAY_SERVICE_NAME=backend
+
+    # Render will set $PORT automatically; our app reads server.port=${PORT:8080}
+    # (changed default from 8081 in application.yml). If you keep 8081, set PORT=8080 here.
+    # The Dockerfile EXPOSE 8081 is kept for documentation; Render maps $PORT to the container port.
+
+ports:
+  - port: 8080
+    internalPort: 8080
+    # httpsPort: true   # uncomment to force HTTPS (Render free tier provides HTTPS automatically)
