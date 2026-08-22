@@ -10,5 +10,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr &
 WORKDIR /app
 COPY --from=build /app/target/careeros-backend-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8081
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD wget -qS -O /dev/null http://localhost:${PORT:-8081}/api/v1/health || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]
