@@ -457,18 +457,19 @@ public class PdfAssistantService {
     private void ensurePdfCollection() {
         try (QdrantClient client = new QdrantClient(
                 QdrantGrpcClient.newBuilder(props.getQdrantHost(), props.getQdrantPort(), false).build())) {
-            try {
-                client.getCollectionInfoAsync(props.getQdrantCollection()).get(10, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                VectorParams params = VectorParams.newBuilder()
-                        .setSize(props.getEmbeddingDimension())
-                        .setDistance(Distance.Cosine)
-                        .build();
-                client.createCollectionAsync(props.getQdrantCollection(), params).get(10, TimeUnit.SECONDS);
-                log.info("Created Qdrant collection '{}' for PDF assistant", props.getQdrantCollection());
+            List<String> collections = client.listCollectionsAsync().get(10, TimeUnit.SECONDS);
+            if (collections.contains(props.getQdrantCollection())) {
+                log.info("Qdrant collection '{}' already exists for PDF assistant", props.getQdrantCollection());
+                return;
             }
+            VectorParams params = VectorParams.newBuilder()
+                    .setSize(props.getEmbeddingDimension())
+                    .setDistance(Distance.Cosine)
+                    .build();
+            client.createCollectionAsync(props.getQdrantCollection(), params).get(10, TimeUnit.SECONDS);
+            log.info("Created Qdrant collection '{}' for PDF assistant", props.getQdrantCollection());
         } catch (Exception e) {
-            throw new IllegalStateException("Could not ensure Qdrant PDF collection: " + safeMessage(e), e);
+            log.warn("Could not ensure Qdrant PDF collection '{}': {}", props.getQdrantCollection(), safeMessage(e));
         }
     }
 

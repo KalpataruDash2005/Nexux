@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
@@ -46,15 +47,17 @@ public class QdrantConfig {
         try {
             QdrantClient client = new QdrantClient(QdrantGrpcClient.newBuilder(qdrantHost, qdrantPort, false).build());
             try {
-                client.getCollectionInfoAsync(COLLECTION_NAME).get(10, TimeUnit.SECONDS);
-                log.info("Qdrant collection '{}' already exists", COLLECTION_NAME);
-            } catch (Exception e) {
-                VectorParams params = VectorParams.newBuilder()
-                        .setSize(EMBEDDING_DIMENSION)
-                        .setDistance(Distance.Cosine)
-                        .build();
-                client.createCollectionAsync(COLLECTION_NAME, params).get(10, TimeUnit.SECONDS);
-                log.info("Created Qdrant collection '{}' with dimension {}", COLLECTION_NAME, EMBEDDING_DIMENSION);
+                List<String> collections = client.listCollectionsAsync().get(10, TimeUnit.SECONDS);
+                if (collections.contains(COLLECTION_NAME)) {
+                    log.info("Qdrant collection '{}' already exists", COLLECTION_NAME);
+                } else {
+                    VectorParams params = VectorParams.newBuilder()
+                            .setSize(EMBEDDING_DIMENSION)
+                            .setDistance(Distance.Cosine)
+                            .build();
+                    client.createCollectionAsync(COLLECTION_NAME, params).get(10, TimeUnit.SECONDS);
+                    log.info("Created Qdrant collection '{}' with dimension {}", COLLECTION_NAME, EMBEDDING_DIMENSION);
+                }
             } finally {
                 client.close();
             }
