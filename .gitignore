@@ -44,7 +44,6 @@ target/
 *.bluej
 *.pkg
 *.ctxt
-.mtj.tmp/
 *.jar
 *.war
 *.nar
@@ -54,13 +53,7 @@ target/
 *.rar
 hs_err_pid*
 replay_pid*
-.apt_generated/
-.classpath
-.project
-.settings/
-.springBeans
-.sts4-cache/
-.factorypath
+backend/apache-maven-*/
 
 # Local embedded Maven
 backend/apache-maven-*/
@@ -82,4 +75,17 @@ docker/n8n/data/
 .cache/
 .sass-cache/
 
+# IDE & Temp
+.apt_generated/
+.classpath
+.project
+.settings/
+.factorypath
+
+# Supabase
 supabase/.temp/
+
+# Environment & Config
+QDRANT_HOST
+QDRANT_PORT
+QDRANT_API_KEY

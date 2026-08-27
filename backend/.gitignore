@@ -2,9 +2,20 @@ target/
 apache-maven-*/
 storage/
 [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*/
-.idea/
+*.idea/
 *.iml
 *.log
 start-*.cmd
-
 run.cmd
+*.jar
+*.war
+
+# Environment variables
+QDRANT_HOST
+QDRANT_PORT
+QDRANT_API_KEY
+DB_PASSWORD
+JWT_SECRET
+MAIL_PASSWORD
+GEMINI_API_KEY
+OPENAI_API_KEY
