@@ -459,7 +459,8 @@ public class PdfAssistantService {
         try {
             client = new QdrantClient(
                     QdrantGrpcClient.newBuilder(props.getQdrantHost(), props.getQdrantPort(), true)
-                            .apiKey(props.getQdrantApiKey())
+                            .withApiKey(props.getQdrantApiKey())
+                            .withTimeout(Duration.ofSeconds(5))
                             .build());
             try {
                 List<String> collections = client.listCollectionsAsync().get(5, TimeUnit.SECONDS);
@@ -546,3 +547,4 @@ public class PdfAssistantService {
         return t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage();
     }
 }
+

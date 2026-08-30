@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -48,8 +49,10 @@ public class QdrantConfig {
     @PostConstruct
     public void ensureCollectionExists() {
         try {
-            QdrantClient client = new QdrantClient(QdrantGrpcClient.newBuilder(qdrantHost, qdrantPort, true)
-                    .apiKey(qdrantApiKey)
+            QdrantClient client = new QdrantClient(QdrantGrpcClient
+                    .newBuilder(qdrantHost, qdrantPort, true)
+                    .withApiKey(qdrantApiKey)
+                    .withTimeout(Duration.ofSeconds(5))
                     .build());
             try {
                 List<String> collections = client.listCollectionsAsync().get(10, TimeUnit.SECONDS);
