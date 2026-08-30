@@ -50,6 +50,7 @@ app:
     internal-key: test-internal
     storage-dir: ./storage/pdf-assistant-test
     qdrant-host: localhost
+    qdrant-api-key: ${QDRANT_API_KEY}
     qdrant-port: 6334
     qdrant-rest-port: 6333
     qdrant-collection: careeros_pdf_chunks

@@ -50,6 +50,9 @@ public class PdfAssistantProperties {
     @Value("${app.pdf-assistant.min-score:0.30}")
     private double minScore;
 
+    @Value("${app.qdrant-api-key:}")
+    private String qdrantApiKey;
+
     @Value("${app.openai.api-key:your_default_key_here}")
     private String llmApiKey;
 
@@ -58,4 +61,3 @@ public class PdfAssistantProperties {
 
     @Value("${app.openai.model:openai/gpt-oss-120b}")
     private String llmModel;
-}

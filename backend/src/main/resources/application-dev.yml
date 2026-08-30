@@ -70,6 +70,7 @@ app:
     internal-key: ${PDF_ASSISTANT_INTERNAL_KEY:careeros-pdf-internal}
     storage-dir: ${PDF_ASSISTANT_STORAGE_DIR:./storage/pdf-assistant}
     qdrant-host: ${QDRANT_HOST:localhost}
+    qdrant-api-key: ${QDRANT_API_KEY}
     qdrant-port: ${QDRANT_PORT:6334}
     qdrant-rest-port: ${QDRANT_REST_PORT:6333}
     qdrant-collection: careeros_pdf_chunks

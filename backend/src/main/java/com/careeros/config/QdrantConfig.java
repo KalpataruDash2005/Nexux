@@ -33,8 +33,11 @@ public class QdrantConfig {
     @Value("${app.qdrant.port:6334}")
     private int qdrantPort;
 
+    @Value("${app.qdrant-api-key:}")
+    private String qdrantApiKey;
+
     @Value("${app.openai.api-key:your_default_key_here}")
-    private String groqApiKey; // The user is using Groq via the OpenAI variable
+    private String groqApiKey;
 
     @Value("${app.openai.base-url:https://api.groq.com/openai/v1}")
     private String groqBaseUrl;
@@ -45,7 +48,9 @@ public class QdrantConfig {
     @PostConstruct
     public void ensureCollectionExists() {
         try {
-            QdrantClient client = new QdrantClient(QdrantGrpcClient.newBuilder(qdrantHost, qdrantPort, false).build());
+            QdrantClient client = new QdrantClient(QdrantGrpcClient.newBuilder(qdrantHost, qdrantPort, true)
+                    .apiKey(qdrantApiKey)
+                    .build());
             try {
                 List<String> collections = client.listCollectionsAsync().get(10, TimeUnit.SECONDS);
                 if (collections.contains(COLLECTION_NAME)) {
