@@ -20,7 +20,6 @@ import {
   listPdfDocuments,
   uploadPdfDocument,
   deletePdfDocument,
-  askPdfQuestion,
   askPdfQuestionStream,
   getPdfChatHistory,
   formatFileSize,
