@@ -81,7 +81,7 @@ app:
     top-k: 5
     min-score: 0.30
   rag:
-    service-url: ${RAG_SERVICE_URL}
+    service-url: ${RAG_SERVICE_URL:http://localhost:8081}
 
 careeros:
   admin:
