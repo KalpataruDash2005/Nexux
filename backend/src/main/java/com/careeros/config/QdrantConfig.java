@@ -34,7 +34,7 @@ public class QdrantConfig {
     @Value("${app.qdrant.port:6334}")
     private int qdrantPort;
 
-    @Value("${app.pdf-assistant.qdrant-api-key:}")
+    @Value("${app.qdrant.api-key:}")
     private String qdrantApiKey;
 
     @Value("${app.qdrant.use-tls:false}")
@@ -60,13 +60,13 @@ public class QdrantConfig {
         try {
             QdrantGrpcClient.Builder grpcBuilder = QdrantGrpcClient
                     .newBuilder(qdrantHost, qdrantPort, useTls)
-                    .withTimeout(Duration.ofSeconds(5));
+                    .withTimeout(Duration.ofSeconds(30));
             if (qdrantApiKey != null && !qdrantApiKey.trim().isEmpty()) {
                 grpcBuilder.withApiKey(qdrantApiKey);
             }
             QdrantClient client = new QdrantClient(grpcBuilder.build());
             try {
-                List<String> collections = client.listCollectionsAsync().get(10, TimeUnit.SECONDS);
+                List<String> collections = client.listCollectionsAsync().get(30, TimeUnit.SECONDS);
                 if (collections.contains(COLLECTION_NAME)) {
                     log.info("Qdrant collection '{}' already exists", COLLECTION_NAME);
                 } else {
@@ -74,7 +74,7 @@ public class QdrantConfig {
                             .setSize(EMBEDDING_DIMENSION)
                             .setDistance(Distance.Cosine)
                             .build();
-                    client.createCollectionAsync(COLLECTION_NAME, params).get(10, TimeUnit.SECONDS);
+                    client.createCollectionAsync(COLLECTION_NAME, params).get(30, TimeUnit.SECONDS);
                     log.info("Created Qdrant collection '{}' with dimension {}", COLLECTION_NAME, EMBEDDING_DIMENSION);
                 }
             } finally {
