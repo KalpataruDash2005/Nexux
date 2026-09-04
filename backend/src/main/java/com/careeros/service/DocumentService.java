@@ -8,9 +8,10 @@ import com.careeros.exception.BadRequestException;
 import com.careeros.repository.DocumentRepository;
 import com.careeros.repository.UserRepository;
 import com.careeros.repository.WorkspaceRepository;
+import com.careeros.service.rag.RagServiceClient;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,12 +26,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
     private final WorkspaceRepository workspaceRepository;
     private final UserRepository userRepository;
     private final ProcessingService processingService;
+    private final RagServiceClient ragServiceClient;
 
     // Local storage path for uploaded files
     @Value("${app.upload-dir:./storage/documents}")
@@ -111,6 +114,12 @@ public class DocumentService {
 
         Document document = documentRepository.findByIdAndWorkspaceId(documentId, workspaceId)
                 .orElseThrow(() -> new BadRequestException("Document not found in this workspace"));
+
+        try {
+            ragServiceClient.deleteDocument(workspaceId, documentId);
+        } catch (Exception e) {
+            log.warn("Failed to delete document from rag-service: {}", e.getMessage());
+        }
 
         // Delete from local storage
         File file = new File(document.getFilePath());

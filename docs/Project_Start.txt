@@ -1,0 +1,43 @@
+Your full startup sequence should now be:
+
+Terminal 1 — Backend
+
+$env:GROQ_API_KEY="your-groq-api-key"
+$env:GROQ_MODEL="openai/gpt-oss-20b"
+cd "D:\Coading World\Nexux\backend"
+& ".\apache-maven-3.9.6\bin\mvn.cmd" spring-boot:run
+
+Terminal 2 — RAG
+
+cd "D:\Coading World\Nexux\rag-service"
+
+$env:GROQ_API_KEY="your-groq-api-key"
+$env:LLM_PROVIDER="groq"
+$env:GROQ_MODEL="openai/gpt-oss-20b"
+
+& "D:\Coading World\Nexux\backend\apache-maven-3.9.6\bin\mvn.cmd" spring-boot:run
+
+Terminal 3 — Frontend
+
+cd "D:\Coading World\Nexux\frontend"
+npm run dev
+
+Terminal 4 - Docker
+
+START DOCKER  DESKSTOP
+Check Docker:
+
+docker ps
+
+If Qdrant container isn't there:
+
+docker start qdrant
+
+If container doesn't exist, run:
+
+docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
+
+Then verify:
+
+curl http://localhost:6333/collections
+

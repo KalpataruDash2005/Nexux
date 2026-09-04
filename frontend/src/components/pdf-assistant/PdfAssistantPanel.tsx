@@ -21,6 +21,7 @@ import {
   uploadPdfDocument,
   deletePdfDocument,
   askPdfQuestion,
+  askPdfQuestionStream,
   getPdfChatHistory,
   formatFileSize,
   isProcessing,
@@ -211,24 +212,37 @@ const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) =>
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsSending(true);
+    
+    // Add an empty AI message that we will stream into
+    const aiMessageId = `local-${Date.now() + 1}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: aiMessageId, role: 'AI', content: '', createdAt: new Date().toISOString() },
+    ]);
+
     try {
-      const res = await askPdfQuestion(workspaceId, selected.id, question);
-      const answerMsg: PdfChatMessage = {
-        id: `local-${Date.now() + 1}`,
-        role: 'AI',
-        content: res.answer,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, answerMsg]);
+      // Use the new streaming API
+      let fullAnswer = "";
+      await askPdfQuestionStream(workspaceId, selected.id, question, (token) => {
+        fullAnswer += token;
+        
+        setMessages((prev) => 
+          prev.map((msg) => 
+            msg.id === aiMessageId ? { ...msg, content: fullAnswer } : msg
+          )
+        );
+      });
+
       if (selected.summary === null) {
         await loadDocuments();
       }
     } catch (err: any) {
-      const errMsg = err?.response?.data?.message || 'Sorry, I ran into an error answering that.';
-      setMessages((prev) => [
-        ...prev,
-        { id: `local-${Date.now() + 1}`, role: 'AI', content: errMsg, createdAt: new Date().toISOString() },
-      ]);
+      const errMsg = err?.message || err?.response?.data?.message || 'Sorry, I ran into an error answering that.';
+      setMessages((prev) => 
+        prev.map((msg) => 
+          msg.id === aiMessageId ? { ...msg, content: errMsg } : msg
+        )
+      );
     } finally {
       setIsSending(false);
     }

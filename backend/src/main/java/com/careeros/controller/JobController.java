@@ -27,7 +27,7 @@ public class JobController {
     }
 
     @PostMapping
-    public ResponseEntity<JobDto> createJob(Authentication authentication, @RequestBody JobDto jobDto) {
+    public ResponseEntity<JobDto> createJob(Authentication authentication, @jakarta.validation.Valid @RequestBody JobDto jobDto) {
         String email = authentication.getName();
         return ResponseEntity.ok(jobService.createJob(email, jobDto));
     }

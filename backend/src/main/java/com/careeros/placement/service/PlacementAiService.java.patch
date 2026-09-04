@@ -1,0 +1,63 @@
+--- D:/Coading World/Nexux/backend/src/main/java/com/careeros/placement/service/PlacementAiService.java
++++ D:/Coading World/Nexux/backend/src/main/java/com/careeros/placement/service/PlacementAiService.java
+@@ -3,22 +3,14 @@
+ import com.careeros.exception.BadRequestException;
+-import com.careeros.placement.config.PlacementProperties;
+ import com.careeros.placement.dto.*;
+ import com.fasterxml.jackson.databind.ObjectMapper;
+ import lombok.extern.slf4j.Slf4j;
+-import org.springframework.http.MediaType;
+ import org.springframework.stereotype.Service;
+-import org.springframework.web.client.RestClient;
++import com.careeros.ai.AIService;
+ 
+ import java.util.*;
+-import java.util.regex.Matcher;
+-import java.util.regex.Pattern;
+ 
+ @Service
+ @Slf4j
+ public class PlacementAiService {
+ 
+-    private static final int LLM_MAX_RETRIES = 5;
+-
+-    private final PlacementProperties props;
+-    private final RestClient.Builder restClientBuilder;
+     private final ObjectMapper objectMapper;
++    private final AIService aiService;
+ 
+-    public PlacementAiService(PlacementProperties props, RestClient.Builder restClientBuilder, ObjectMapper objectMapper) {
+-        this.props = props;
+-        this.restClientBuilder = restClientBuilder;
++    public PlacementAiService(AIService aiService, ObjectMapper objectMapper) {
++        this.aiService = aiService;
+         this.objectMapper = objectMapper;
+     }
+ 
+     public String chat(String system, String user, double temperature, int maxTokens) {
+-        String raw = postCompletion(body(system, user, temperature, maxTokens, false));
+-        return raw;
++        return aiService.generate(system, user, temperature, maxTokens, false);
+     }
+ 
+     public <T> T chatJson(String system, String user, Class<T> type) {
+@@ -30,23 +23,7 @@
+ 
+     public <T> T chatJson(String system, String user, Class<T> type, double temperature, int maxTokens) {
+-        String raw = postCompletion(body(system, user, temperature, maxTokens, true));
+-        return parseJsonSafely(raw, type);
+-    }
+-
+-    private <T> T parseJsonSafely(String raw, Class<T> type) {
+-        try {
+-            return objectMapper.readValue(cleanJson(raw), type);
+-        } catch (Exception e) {
+-            log.error("Failed to parse JSON: {}", safeMessage(e));
+-            log.debug("Raw JSON was: {}", raw);
+-            throw new BadRequestException("AI returned invalid JSON: " + safeMessage(e));
+-        }
++        return aiService.generateJson(system, user, type, temperature, maxTokens);
+     }
+ 
+     // ------------------------------------------------------------------
+     // Business logic

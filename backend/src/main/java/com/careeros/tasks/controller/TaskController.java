@@ -27,7 +27,7 @@ public class TaskController {
     // ------------------------------------------------------------------
 
     @PostMapping
-    public ResponseEntity<TaskDto> createTask(@RequestBody CreateTaskRequest request) {
+    public ResponseEntity<TaskDto> createTask(@jakarta.validation.Valid @RequestBody CreateTaskRequest request) {
         return ResponseEntity.ok(taskService.createTask(getCurrentUserEmail(), request));
     }
 
@@ -42,7 +42,7 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<TaskDto> updateTask(@PathVariable String id, @RequestBody UpdateTaskRequest request) {
+    public ResponseEntity<TaskDto> updateTask(@PathVariable String id, @jakarta.validation.Valid @RequestBody UpdateTaskRequest request) {
         return ResponseEntity.ok(taskService.updateTask(getCurrentUserEmail(), id, request));
     }
 

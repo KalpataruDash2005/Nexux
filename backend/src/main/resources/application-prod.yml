@@ -37,12 +37,14 @@ spring:
       client:
         registration:
           google:
-            client-id: ${GOOGLE_CLIENT_ID:change-me.apps.googleusercontent.com}
-            client-secret: ${GOOGLE_CLIENT_SECRET:change-me-oauth-client-secret}
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: email, profile
             redirect-uri: "{baseUrl}/login/oauth2/code/google"
 
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
   oauth:
     cookie-secret: ${OAUTH_COOKIE_SECRET}
     cookie-secure: true
@@ -67,7 +69,7 @@ app:
     n8n-webhook-url: ${N8N_WEBHOOK_URL}
     n8n-api-key: ${N8N_API_KEY:}
     internal-key: ${PDF_ASSISTANT_INTERNAL_KEY}
-    storage-dir: ${PDF_ASSISTANT_STORAGE_DIR:./storage/pdf-assistant}
+    storage-dir: ${PDF_ASSISTANT_STORAGE_DIR:/var/data/pdf-assistant}
     qdrant-host: ${QDRANT_HOST}
     qdrant-api-key: ${QDRANT_API_KEY}
     qdrant-port: ${QDRANT_PORT:6334}

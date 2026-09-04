@@ -8,7 +8,7 @@ services:
     name: careeros-backend
     env: docker
     autoDeploy: true
-    source: .
+    source: backend
 
     # Environment variables are entered manually in the Render dashboard.
     # See the list of required vars in the deployment guide.

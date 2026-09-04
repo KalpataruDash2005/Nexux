@@ -25,9 +25,15 @@ public class NotificationController {
 
     private final AiNotificationService aiNotificationService;
     private final TaskService taskService;
+    private final com.careeros.repository.UserRepository userRepository;
 
     @PostMapping
-    public ResponseEntity<String> sendNotification(@RequestBody NotificationRequestDto requestDto) {
+    public ResponseEntity<String> sendNotification(@jakarta.validation.Valid @RequestBody NotificationRequestDto requestDto) {
+        String email = getCurrentUserEmail();
+        com.careeros.entity.User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null || !"ADMIN".equalsIgnoreCase(user.getRole())) {
+            return ResponseEntity.status(403).body("Action not permitted: Requires ADMIN role");
+        }
         aiNotificationService.processAndSendNotification(requestDto);
         return ResponseEntity.ok("Notification request processed successfully");
     }

@@ -24,7 +24,7 @@ public class WorkspaceController {
     }
 
     @PostMapping
-    public ResponseEntity<WorkspaceResponseDto> createWorkspace(@RequestBody CreateWorkspaceRequestDto request) {
+    public ResponseEntity<WorkspaceResponseDto> createWorkspace(@jakarta.validation.Valid @RequestBody CreateWorkspaceRequestDto request) {
         return ResponseEntity.ok(workspaceService.createWorkspace(getCurrentUserId(), request));
     }
 
@@ -51,7 +51,7 @@ public class WorkspaceController {
 
     @PatchMapping("/{id}")
     public ResponseEntity<WorkspaceResponseDto> renameWorkspace(@PathVariable String id,
-                                                                @RequestBody com.careeros.dto.workspace.RenameWorkspaceRequestDto request) {
+                                                                @jakarta.validation.Valid @RequestBody com.careeros.dto.workspace.RenameWorkspaceRequestDto request) {
         return ResponseEntity.ok(workspaceService.renameWorkspace(
                 id, getCurrentUserId(), request.getName(), request.getDescription()));
     }

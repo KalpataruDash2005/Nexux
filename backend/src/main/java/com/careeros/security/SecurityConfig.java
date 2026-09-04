@@ -32,8 +32,11 @@ public class SecurityConfig {
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
     private final CookieOAuth2AuthorizationRequestRepository oAuth2AuthorizationRequestRepository;
     private final PasswordEncoder passwordEncoder;
+    
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private DevAuthenticationFilter devAuthenticationFilter;
 
-    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:3001,http://localhost:5173,http://127.0.0.1:3001}")
+    @Value("${app.cors.allowed-origins}")
     private String[] allowedOrigins;
 
     @Bean
@@ -58,10 +61,11 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/health").permitAll()
+                .requestMatchers("/", "/health", "/api/v1/health").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/api/v1/feedback").permitAll()
                 .requestMatchers("/api/v1/pdf-assistant/internal/**").permitAll()
+                .requestMatchers(org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher("/error")).permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
@@ -74,6 +78,9 @@ public class SecurityConfig {
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         
+        if (devAuthenticationFilter != null) {
+            http.addFilterAfter(devAuthenticationFilter, JwtAuthenticationFilter.class);
+        }
         
         return http.build();
     }
@@ -82,11 +89,6 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         List<String> origins = new java.util.ArrayList<>(Arrays.asList(allowedOrigins));
-        // Accept any Vercel preview deployment (its domain changes on every deploy)
-        // without re-listing each one; the production domain stays explicit.
-        if (!origins.contains("https://*.vercel.app")) {
-            origins.add("https://*.vercel.app");
-        }
         configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("authorization", "content-type", "x-auth-token", "origin", "accept"));

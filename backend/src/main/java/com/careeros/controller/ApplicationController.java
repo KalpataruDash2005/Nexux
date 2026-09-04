@@ -34,7 +34,7 @@ public class ApplicationController {
     @PostMapping
     public ResponseEntity<ApplicationDto> applyForJob(
             Authentication authentication,
-            @RequestBody CreateApplicationDto dto) {
+            @jakarta.validation.Valid @RequestBody CreateApplicationDto dto) {
         String email = authentication.getName();
         return ResponseEntity.ok(applicationService.applyForJob(email, dto));
     }

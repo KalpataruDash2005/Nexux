@@ -1,0 +1,12 @@
+server:
+  port: ${PORT:8081}
+spring:
+  application:
+    name: rag-service
+
+app:
+  qdrant:
+    host: ${QDRANT_HOST:localhost}
+    port: ${QDRANT_PORT:6334}
+    api-key: ${QDRANT_API_KEY:}
+

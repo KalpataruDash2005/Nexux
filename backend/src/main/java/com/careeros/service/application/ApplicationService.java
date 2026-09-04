@@ -78,9 +78,13 @@ public class ApplicationService {
             throw new AccessDeniedException("You can only view applications for your own jobs");
         }
 
-        return applicationRepository.findByJobIdOrderByCreatedAtDesc(jobId)
-                .stream()
-                .map(this::mapToDetailsDto)
+        List<Application> applications = applicationRepository.findByJobIdOrderByCreatedAtDesc(jobId);
+        List<String> studentIds = applications.stream().map(a -> a.getStudent().getId()).collect(Collectors.toList());
+        java.util.Map<String, StudentProfile> profileMap = studentProfileRepository.findByUserIdIn(studentIds)
+                .stream().collect(Collectors.toMap(p -> p.getUser().getId(), p -> p));
+
+        return applications.stream()
+                .map(a -> mapToDetailsDtoWithProfile(a, profileMap.get(a.getStudent().getId())))
                 .collect(Collectors.toList());
     }
 
@@ -116,6 +120,10 @@ public class ApplicationService {
 
     private ApplicationDetailsDto mapToDetailsDto(Application application) {
         StudentProfile profile = studentProfileRepository.findByUserId(application.getStudent().getId()).orElse(null);
+        return mapToDetailsDtoWithProfile(application, profile);
+    }
+
+    private ApplicationDetailsDto mapToDetailsDtoWithProfile(Application application, StudentProfile profile) {
         String name = profile != null ? profile.getFirstName() + " " + profile.getLastName() : "Unknown";
         String resume = profile != null ? profile.getResumeUrl() : null;
         String skills = profile != null ? profile.getSkills() : null;

@@ -23,7 +23,7 @@ public class PdfAssistantProperties {
     @Value("${app.pdf-assistant.storage-dir:./storage/pdf-assistant}")
     private String storageDir;
 
-    @Value("${app.pdf-assistant.qdrant-host:localhost}")
+    @Value("${app.pdf-assistant.qdrant-host:127.0.0.1}")
     private String qdrantHost;
 
     @Value("${app.pdf-assistant.qdrant-port:6334}")

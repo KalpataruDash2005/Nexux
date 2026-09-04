@@ -65,6 +65,13 @@ public class PdfAssistantController {
         return ResponseEntity.ok(pdfAssistantService.chat(workspaceId, documentId, getCurrentUserEmail(), request));
     }
 
+    @PostMapping(value = "/{documentId}/chat/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter chatStream(@PathVariable String workspaceId,
+                                                @PathVariable String documentId,
+                                                @RequestBody PdfChatRequest request) {
+        return pdfAssistantService.chatStream(workspaceId, documentId, getCurrentUserEmail(), request);
+    }
+
     @GetMapping("/{documentId}/chat")
     public ResponseEntity<List<PdfChatMessageResponse>> history(@PathVariable String workspaceId,
                                                                 @PathVariable String documentId) {

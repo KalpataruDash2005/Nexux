@@ -28,7 +28,7 @@ public class QdrantConfig {
     private static final String COLLECTION_NAME = "careeros_chunks";
     private static final int EMBEDDING_DIMENSION = 384;
 
-    @Value("${app.qdrant.host:localhost}")
+    @Value("${app.qdrant.host:127.0.0.1}")
     private String qdrantHost;
 
     @Value("${app.qdrant.port:6334}")
@@ -36,6 +36,9 @@ public class QdrantConfig {
 
     @Value("${app.pdf-assistant.qdrant-api-key:}")
     private String qdrantApiKey;
+
+    @Value("${app.qdrant.use-tls:false}")
+    private boolean useTls;
 
     @Value("${app.openai.api-key:your_default_key_here}")
     private String groqApiKey;
@@ -48,12 +51,20 @@ public class QdrantConfig {
 
     @PostConstruct
     public void ensureCollectionExists() {
+        log.info("--- Qdrant Connection Diagnostics ---");
+        log.info("QDRANT_HOST: {}", qdrantHost);
+        log.info("QDRANT_GRPC_PORT: {}", qdrantPort);
+        log.info("QDRANT_TLS_ENABLED: {}", useTls);
+        log.info("-------------------------------------");
+
         try {
-            QdrantClient client = new QdrantClient(QdrantGrpcClient
-                    .newBuilder(qdrantHost, qdrantPort, true)
-                    .withApiKey(qdrantApiKey)
-                    .withTimeout(Duration.ofSeconds(5))
-                    .build());
+            QdrantGrpcClient.Builder grpcBuilder = QdrantGrpcClient
+                    .newBuilder(qdrantHost, qdrantPort, useTls)
+                    .withTimeout(Duration.ofSeconds(5));
+            if (qdrantApiKey != null && !qdrantApiKey.trim().isEmpty()) {
+                grpcBuilder.withApiKey(qdrantApiKey);
+            }
+            QdrantClient client = new QdrantClient(grpcBuilder.build());
             try {
                 List<String> collections = client.listCollectionsAsync().get(10, TimeUnit.SECONDS);
                 if (collections.contains(COLLECTION_NAME)) {
@@ -80,6 +91,7 @@ public class QdrantConfig {
         return QdrantEmbeddingStore.builder()
                 .host(qdrantHost)
                 .port(qdrantPort)
+                .useTls(useTls)
                 .collectionName(COLLECTION_NAME)
                 .build();
     }
@@ -103,4 +115,5 @@ public class QdrantConfig {
                 .build();
     }
 }
+
 

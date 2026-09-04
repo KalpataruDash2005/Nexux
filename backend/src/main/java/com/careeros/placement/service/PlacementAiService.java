@@ -2,77 +2,61 @@ package com.careeros.placement.service;
 
 import com.careeros.entity.AptitudeQuestion;
 import com.careeros.exception.BadRequestException;
-import com.careeros.placement.config.PlacementProperties;
 import com.careeros.placement.dto.AnalyzeResumeResponse;
 import com.careeros.placement.dto.AptitudeParsedBatch;
 import com.careeros.placement.dto.AptitudeParsedQuestion;
-import com.careeros.placement.dto.AptitudeTestDto;
-import com.careeros.placement.dto.CodingEvaluation;
-import com.careeros.placement.dto.CodingProblem;
-import com.careeros.placement.dto.InterviewFeedback;
-import com.careeros.placement.dto.ReadinessResponse;
-import com.careeros.placement.dto.RoadmapResponse;
+import com.careeros.placement.dto.*;
 import com.careeros.repository.AptitudeQuestionRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
+import com.careeros.ai.AIService;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 public class PlacementAiService {
 
-    private static final int LLM_MAX_RETRIES = 5;
-    private static final int JSON_MAX_ATTEMPTS = 3;
+    private static final int JSON_MAX_ATTEMPTS = 2;
 
-    private final PlacementProperties props;
-    private final RestClient.Builder restClientBuilder;
+    private final AIService aiService;
     private final ObjectMapper objectMapper;
     private final AptitudeQuestionBank questionBank;
     private final AptitudeQuestionRepository aptitudeQuestionRepository;
 
-    public PlacementAiService(PlacementProperties props, RestClient.Builder restClientBuilder, ObjectMapper objectMapper,
-                              AptitudeQuestionBank questionBank, AptitudeQuestionRepository aptitudeQuestionRepository) {
-        this.props = props;
-        this.restClientBuilder = restClientBuilder;
+    public PlacementAiService(AIService aiService, ObjectMapper objectMapper, AptitudeQuestionBank questionBank, AptitudeQuestionRepository aptitudeQuestionRepository) {
+        this.aiService = aiService;
         this.objectMapper = objectMapper;
         this.questionBank = questionBank;
         this.aptitudeQuestionRepository = aptitudeQuestionRepository;
     }
 
-    public String chat(String system, String user, double temperature, int maxTokens) {
-        return postCompletion(body(system, user, temperature, maxTokens, false));
+    public String chat(com.careeros.ai.AITask task, String system, String user, double temperature, int maxTokens) {
+        return aiService.generate(task, system, user, temperature, maxTokens, false);
     }
 
-    public <T> T chatJson(String system, String user, Class<T> type) {
-        return chatJson(system, user, type, 0.2);
+    public <T> T chatJson(com.careeros.ai.AITask task, String system, String user, Class<T> type) {
+        return chatJson(task, system, user, type, 0.2);
     }
 
-    public <T> T chatJson(String system, String user, Class<T> type, double temperature) {
-        return chatJson(system, user, type, temperature, 2048);
+    public <T> T chatJson(com.careeros.ai.AITask task, String system, String user, Class<T> type, double temperature) {
+        return chatJson(task, system, user, type, temperature, -1);
     }
 
-    public <T> T chatJson(String system, String user, Class<T> type, double temperature, int maxTokens) {
+    public <T> T chatJson(com.careeros.ai.AITask task, String system, String user, Class<T> type, double temperature, int maxTokens) {
         String current = user;
         for (int attempt = 1; attempt <= JSON_MAX_ATTEMPTS; attempt++) {
-            String raw = postCompletion(body(system, current, temperature, maxTokens, true));
             try {
-                return objectMapper.readValue(cleanJson(raw), type);
+                return aiService.generateJson(task, system, current, type, temperature, maxTokens);
             } catch (Exception e) {
-                log.warn("Placement AI JSON parse failed (attempt {}/{}): {}", attempt, JSON_MAX_ATTEMPTS, safeMessage(e));
-                current = user + "\n\nYour previous response was not valid JSON. Reply with ONLY valid JSON matching the requested schema. No prose, no code fences.";
+                log.warn("Failed to parse JSON (attempt {}/{}): {}", attempt, JSON_MAX_ATTEMPTS, e.getMessage());
+                current = user + "\n\nYour previous response was not valid JSON. Reply with ONLY valid JSON.";
             }
         }
         throw new BadRequestException("AI returned invalid JSON after " + JSON_MAX_ATTEMPTS + " attempts");
@@ -84,7 +68,7 @@ public class PlacementAiService {
 
     public AnalyzeResumeResponse.Analysis analyzeResumeText(String text) {
         String user = "Here is the full text of a candidate's resume:\n\n\"" + truncate(text, 12000) + "\"\n\n" +
-                "Analyze this resume and return a JSON object with EXACTLY these fields:\n" +
+                "Analyze this resume and return JSON with these fields:\n" +
                 "- candidateName: string (from the resume header; empty string if not found)\n" +
                 "- atsScore: integer 0-100 (how well it would pass ATS keyword/section parsing)\n" +
                 "- overallScore: integer 0-100\n" +
@@ -103,9 +87,8 @@ public class PlacementAiService {
                 "- recommendedProjects: array of strings (max 3)\n" +
                 "- recommendedCertifications: array of strings (max 3)\n" +
                 "- checklist: array of strings (max 8 actionable resume fixes)\n" +
-                "IMPORTANT: Never invent experience, companies, degrees, or skills not present in or directly implied by the text. " +
-                "If a section is missing, return an empty array. Return ONLY valid JSON.";
-        return chatJson(resumeSystem(), user, AnalyzeResumeResponse.Analysis.class, 0.2, 4096);
+                "Only extract information present in the text.";
+        return chatJson(com.careeros.ai.AITask.RESUME_ANALYSIS, resumeSystem(), user, AnalyzeResumeResponse.Analysis.class, 0.2, 4096);
     }
 
     public String firstQuestion(String type, String role, String company, String difficulty, String resumeText) {
@@ -116,7 +99,7 @@ public class PlacementAiService {
                 " at " + (difficulty == null || difficulty.isBlank() ? "MEDIUM" : difficulty) + " difficulty." +
                 " If a resume was provided and the type is PROJECT, ask about the strongest project on the resume. " +
                 "Output ONLY the question text, with no preamble, no numbering, no extra text.";
-        return chat(system, user, 0.7, 1024);
+        return chat(com.careeros.ai.AITask.INTERVIEW_ASSISTANCE, system, user, 0.7, 1024);
     }
 
     public InterviewFeedback evaluateAnswer(String type, String role, String company, String difficulty, List<String> historyLines, String latestAnswer) {
@@ -132,7 +115,7 @@ public class PlacementAiService {
         user.append("Scoring discipline: Be a strict examiner. Only give high scores (80+) for genuinely strong, complete, technically sound answers. ")
                 .append("Score honestly low (below 60) for vague, shallow, incorrect, or skipped answers. ") 
                 .append("Name the real weaknesses and give specific, actionable improvement tips. ")
-                .append("Evaluate this answer and return ONLY valid JSON with EXACTLY these fields:\n")
+                .append("Evaluate this answer and return JSON with these fields:\n")
                 .append("- score: integer 0-100 overall\n")
                 .append("- scores: object with keys confidence, communication, grammar, technicalAccuracy, structure, completeness (each 0-100)\n")
                 .append("- strengths: array of strings (max 3)\n")
@@ -144,7 +127,7 @@ public class PlacementAiService {
                 .append("- questionCount: integer (the number of questions asked so far including this one)\n")
                 .append("- shouldEnd: boolean (true if the interview should conclude now, e.g. 8+ questions asked, or the answer clearly closes the topic)\n")
                 .append("- finalSummary: string (ONLY when shouldEnd is true: a 2-3 sentence overall assessment; otherwise empty string)\n");
-        return chatJson(system, user.toString(), InterviewFeedback.class);
+        return chatJson(com.careeros.ai.AITask.INTERVIEW_ASSISTANCE, system, user.toString(), InterviewFeedback.class);
     }
 
     public CodingProblem generateCodingProblem(String role, String topic, String difficulty, List<String> usedTitles) {
@@ -154,7 +137,7 @@ public class PlacementAiService {
                 "The statement must state the input format and output format explicitly. testCases.expectedOutput must be EXACTLY what a correct program prints (no extra text).\n" +
                 "Variety rule: the candidate already solved these problems before — pick a DIFFERENT well-known problem and do NOT reuse any of these or near-variants of them:\n" +
                 avoidList(usedTitles, 20) + "\n" +
-                "Return ONLY valid JSON with EXACTLY these fields:\n" +
+                "Return JSON with these fields:\n" +
                 "- title: string\n" +
                 "- statement: string (clear problem statement with input/output format and constraints stated in prose)\n" +
                 "- examples: array of objects {input, output} (2-3 examples, input shows sample values)\n" +
@@ -162,8 +145,8 @@ public class PlacementAiService {
                 "- difficulty: string EASY|MEDIUM|HARD\n" +
                 "- topics: array of strings (max 3)\n" +
                 "- testCases: array of objects {input, expectedOutput, hidden} (EXACTLY 4-5 test cases; at least 2 must be hidden edge cases; input is the raw stdin the judge sends, expectedOutput is the exact stdout the correct solution prints, hidden is a boolean)\n" +
-                "The problem must be a real, solvable problem (e.g. Two Sum, Merge Intervals). No ambiguity. Return ONLY the JSON.";
-        return chatJson(codingSystem(), user, CodingProblem.class, 0.8);
+                "The problem must be a real, solvable problem (e.g. Two Sum, Merge Intervals). No ambiguity.";
+        return chatJson(com.careeros.ai.AITask.CODING_ASSISTANCE, codingSystem(), user, CodingProblem.class, 0.8);
     }
 
     public CodingEvaluation evaluateCode(CodingProblem problem, String language, String code) {
@@ -172,7 +155,7 @@ public class PlacementAiService {
                 "\n\nLanguage: " + language + "\n\nCandidate code:\n```\n" + truncate(code, 8000) + "\n```\n\n" +
                 "You cannot execute the code. Reason carefully about correctness (edge cases, index handling, base cases), complexity, and style. " +
                 "As a strict examiner: be honest and rigorous — do not give high scores for code that is wrong on edge cases, breaks down, or is inefficient. " +
-                "Point out the exact bugs and edge cases that fail. Return ONLY valid JSON with EXACTLY these fields:\n" +
+                "Point out the exact bugs and edge cases that fail. Return JSON with these fields:\n" +
                 "- correctness: integer 0-100 (correctness for typical + edge cases; 100 only if clearly correct)\n" +
                 "- timeComplexity: string (Big-O)\n" +
                 "- spaceComplexity: string (Big-O)\n" +
@@ -183,7 +166,7 @@ public class PlacementAiService {
                 "- alternativeSolutions: array of strings (max 3)\n" +
                 "- expectedQuestions: array of strings (max 3 follow-up questions)\n" +
                 "Return ONLY the JSON.";
-        return chatJson(codingSystem(), user, CodingEvaluation.class);
+        return chatJson(com.careeros.ai.AITask.CODING_ASSISTANCE, codingSystem(), user, CodingEvaluation.class);
     }
 
     public AptitudeTestDto generateAptitudeTest(String category, String difficulty, int count, List<String> usedQuestions) {
@@ -290,7 +273,7 @@ public AptitudeParsedBatch parseAptitudePdf(String text) {
                 "If no questions can be identified, return {\"questions\": []}. " +
                 "Return as many complete questions as fit in the output. Do not omit any question present in the text; if the chunk is long, " +
                 "still parse every question it contains. Return ONLY the JSON.";
-        return chatJson(system, user, AptitudeParsedBatch.class, 0.2, 4096);
+        return chatJson(com.careeros.ai.AITask.APTITUDE_GENERATION, system, user, AptitudeParsedBatch.class, 0.2, 4096);
     }
 
     private static final int CHUNK_OVERLAP = 1200;
@@ -345,19 +328,18 @@ public AptitudeParsedBatch parseAptitudePdf(String text) {
 
     public ReadinessResponse.ReadinessAi generateReadiness(String profileSummary) {
         String user = "Based on this candidate profile summary:\n\"" + profileSummary + "\"\n\n" +
-                "Return ONLY valid JSON with EXACTLY these fields:\n" +
+                "Return JSON with these fields:\n" +
                 "- recommendedCompanies: array of strings (companies that best fit this profile, max 5)\n" +
                 "- recommendedRoles: array of strings (roles to target, max 5)\n" +
                 "- learningPath: array of objects {topic, resources[] (max 3), estimatedHours (number), priority (HIGH|MEDIUM|LOW)} (max 6 items, most impactful first)\n" +
                 "RULES: resources must be REAL, specific URLs (start with https://) of well-known free learning material such as LeetCode, GeeksforGeeks, W3Schools, MDN, Coursera, freeCodeCamp, TakeUForward/Striver, or official docs. " +
-                "Do NOT use the same resource URL twice across the whole learningPath, and do not repeat any topic. " +
-                "Base recommendations ONLY on the provided profile. Return ONLY the JSON.";
-        return chatJson(strategySystem(), user, ReadinessResponse.ReadinessAi.class);
+                "Keep recommendations distinct and actionable. Base recommendations ONLY on the provided profile.";
+        return chatJson(com.careeros.ai.AITask.PLACEMENT_READINESS, strategySystem(), user, ReadinessResponse.ReadinessAi.class);
     }
 
     public RoadmapResponse.RoadmapAi generateRoadmap(String profileSummary) {
         String user = "Based on this candidate profile summary:\n\"" + profileSummary + "\"\n\n" +
-                "Return ONLY valid JSON with EXACTLY these fields:\n" +
+                "Return JSON with these fields:\n" +
                 "- weakTopics: array of strings (max 6)\n" +
                 "- dailyTasks: array of strings (a focused 2-week daily practice plan, max 7 tasks)\n" +
                 "- weeklyGoals: array of strings (max 5)\n" +
@@ -367,9 +349,8 @@ public AptitudeParsedBatch parseAptitudePdf(String text) {
                 "- codingRecommendations: array of strings (max 5)\n" +
                 "- dsaRevision: array of strings (max 5)\n" +
                 "- aptitudePractice: array of strings (max 5)\n" +
-                "RULES: Keep each field's items DISTINCT — never repeat the same task, topic, or phrase inside a field or across fields. " +
-                "Every daily task must be unique. Be concrete and actionable. Return ONLY the JSON.";
-        return chatJson(strategySystem(), user, RoadmapResponse.RoadmapAi.class);
+                "RULES: Keep recommendations distinct and actionable.";
+        return chatJson(com.careeros.ai.AITask.PLACEMENT_ROADMAP, strategySystem(), user, RoadmapResponse.RoadmapAi.class);
     }
 
     // ------------------------------------------------------------------
@@ -422,112 +403,6 @@ public AptitudeParsedBatch parseAptitudePdf(String text) {
                 "You output strictly valid JSON (no markdown). You never invent facts about the candidate; use only the provided profile summary.";
     }
 
-    // ------------------------------------------------------------------
-    // LLM plumbing
-    // ------------------------------------------------------------------
-
-    private Map<String, Object> body(String system, String user, double temperature, int maxTokens, boolean jsonMode) {
-        List<Map<String, Object>> messages = new ArrayList<>();
-        Map<String, Object> sys = new LinkedHashMap<>();
-        sys.put("role", "system");
-        sys.put("content", system);
-        messages.add(sys);
-        Map<String, Object> usr = new LinkedHashMap<>();
-        usr.put("role", "user");
-        usr.put("content", user);
-        messages.add(usr);
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", props.getLlmModel());
-        body.put("temperature", temperature);
-        body.put("max_tokens", maxTokens);
-        if (jsonMode) {
-            body.put("response_format", Map.of("type", "json_object"));
-        }
-        body.put("messages", messages);
-        return body;
-    }
-
-    private String postCompletion(Map<String, Object> body) {
-        Exception lastError = null;
-        for (int attempt = 1; attempt <= LLM_MAX_RETRIES; attempt++) {
-            try {
-                Map<?, ?> json = restClientBuilder.build()
-                        .post()
-                        .uri(props.getLlmBaseUrl() + "/chat/completions")
-                        .header("Authorization", "Bearer " + props.getLlmApiKey())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(body)
-                        .retrieve()
-                        .body(Map.class);
-                if (json == null) {
-                    throw new IllegalStateException("LLM returned an empty response");
-                }
-                List<?> choices = (List<?>) json.get("choices");
-                if (choices == null || choices.isEmpty()) {
-                    throw new IllegalStateException("LLM returned no choices");
-                }
-                Object first = choices.get(0);
-                if (!(first instanceof Map<?, ?>)) {
-                    throw new IllegalStateException("Unexpected LLM response shape");
-                }
-                Object message = ((Map<?, ?>) first).get("message");
-                if (!(message instanceof Map<?, ?>)) {
-                    throw new IllegalStateException("Unexpected LLM message shape");
-                }
-                Object content = ((Map<?, ?>) message).get("content");
-                return content == null ? "" : String.valueOf(content);
-            } catch (Exception e) {
-                lastError = e;
-                String msg = e.getMessage() == null ? "" : e.getMessage();
-                boolean rateLimited = msg.contains("rate_limit_exceeded") || msg.contains("429");
-                if (!rateLimited || attempt == LLM_MAX_RETRIES) {
-                    throw new BadRequestException("AI call failed: " + safeMessage(e));
-                }
-                long waitMs = retryDelayMs(msg, attempt);
-                log.warn("Placement AI rate limited (attempt {}), retrying in {} ms", attempt, waitMs);
-                try {
-                    Thread.sleep(waitMs);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new BadRequestException("Interrupted while waiting to retry AI call");
-                }
-            }
-        }
-        throw new BadRequestException("AI call failed after retries: " + safeMessage(lastError));
-    }
-
-    private long retryDelayMs(String message, int attempt) {
-        Matcher m = Pattern.compile("try again in (\\d+(?:\\.\\d+)?)\\s*s")
-                .matcher(message == null ? "" : message);
-        if (m.find()) {
-            long seconds = (long) Math.ceil(Double.parseDouble(m.group(1)));
-            if (seconds >= 1 && seconds <= 120) {
-                return seconds * 1000L;
-            }
-        }
-        return Math.min(4000L * (1L << (attempt - 1)), 60000L);
-    }
-
-    private String cleanJson(String raw) {        if (raw == null) {
-            return "{}";
-        }
-        String s = raw.trim();
-        if (s.startsWith("```")) {
-            int nl = s.indexOf('\n');
-            if (nl >= 0) {
-                s = s.substring(nl + 1);
-            }
-            s = s.replaceAll("```\\s*$", "").trim();
-        }
-        int start = s.indexOf('{');
-        int end = s.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            return s.substring(start, end + 1);
-        }
-        return s;
-    }
-
     private String safeMessage(Throwable t) {
         if (t == null) {
             return "unknown error";
@@ -560,3 +435,4 @@ public AptitudeParsedBatch parseAptitudePdf(String text) {
         return s.toLowerCase().replaceAll("\\s+", " ").trim();
     }
 }
+
