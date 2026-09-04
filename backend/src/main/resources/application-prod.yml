@@ -80,6 +80,8 @@ app:
     chunk-overlap: 100
     top-k: 5
     min-score: 0.30
+  rag:
+    service-url: ${RAG_SERVICE_URL}
 
 careeros:
   admin:
