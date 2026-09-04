@@ -46,4 +46,6 @@ about that document.
 > Caveat: the native fallback and n8n share one Qdrant collection. If your n8n
 > embedding model is not 384-dim (e.g. OpenAI `text-embedding-3-small` is
 > 1536-dim), set `PDF_ASSISTANT_N8N_ENABLED=false` in `backend/.env`.
+>
+>     
 
