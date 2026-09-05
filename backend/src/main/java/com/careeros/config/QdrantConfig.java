@@ -11,7 +11,7 @@ import io.qdrant.client.QdrantClient;
 import io.qdrant.client.QdrantGrpcClient;
 import io.qdrant.client.grpc.Collections.Distance;
 import io.qdrant.client.grpc.Collections.VectorParams;
-import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -49,62 +49,71 @@ public class QdrantConfig {
     @Value("${app.openai.model:openai/gpt-oss-120b}")
     private String groqModel;
 
-    @PostConstruct
-    public void ensureCollectionExists() {
+    private QdrantClient qdrantClient;
+
+    @Bean
+    public QdrantClient qdrantClient() {
+        boolean hasApiKey = (qdrantApiKey != null && !qdrantApiKey.trim().isEmpty());
         log.info("--- Qdrant Connection Diagnostics ---");
         log.info("QDRANT_HOST: {}", qdrantHost);
         log.info("QDRANT_GRPC_PORT: {}", qdrantPort);
         log.info("QDRANT_TLS_ENABLED: {}", useTls);
+        log.info("QDRANT_API_KEY_PRESENT: {}", hasApiKey);
         log.info("-------------------------------------");
 
+        QdrantGrpcClient.Builder grpcBuilder = QdrantGrpcClient
+                .newBuilder(qdrantHost, qdrantPort, useTls)
+                .withTimeout(Duration.ofSeconds(30));
+        
+        if (hasApiKey) {
+            grpcBuilder.withApiKey(qdrantApiKey);
+        }
+
+        this.qdrantClient = new QdrantClient(grpcBuilder.build());
+
         try {
-            QdrantGrpcClient.Builder grpcBuilder = QdrantGrpcClient
-                    .newBuilder(qdrantHost, qdrantPort, useTls)
-                    .withTimeout(Duration.ofSeconds(30));
-            if (qdrantApiKey != null && !qdrantApiKey.trim().isEmpty()) {
-                grpcBuilder.withApiKey(qdrantApiKey);
-            }
-            QdrantClient client = new QdrantClient(grpcBuilder.build());
-            try {
-                List<String> collections = client.listCollectionsAsync().get(30, TimeUnit.SECONDS);
-                if (collections.contains(COLLECTION_NAME)) {
-                    log.info("Qdrant collection '{}' already exists", COLLECTION_NAME);
-                } else {
-                    VectorParams params = VectorParams.newBuilder()
-                            .setSize(EMBEDDING_DIMENSION)
-                            .setDistance(Distance.Cosine)
-                            .build();
-                    client.createCollectionAsync(COLLECTION_NAME, params).get(30, TimeUnit.SECONDS);
-                    log.info("Created Qdrant collection '{}' with dimension {}", COLLECTION_NAME, EMBEDDING_DIMENSION);
-                }
-            } finally {
-                client.close();
+            List<String> collections = this.qdrantClient.listCollectionsAsync().get(30, TimeUnit.SECONDS);
+            log.info("Qdrant connection successful");
+            
+            if (collections.contains(COLLECTION_NAME)) {
+                log.info("Qdrant collection '{}' already exists", COLLECTION_NAME);
+            } else {
+                VectorParams params = VectorParams.newBuilder()
+                        .setSize(EMBEDDING_DIMENSION)
+                        .setDistance(Distance.Cosine)
+                        .build();
+                this.qdrantClient.createCollectionAsync(COLLECTION_NAME, params).get(30, TimeUnit.SECONDS);
+                log.info("Created Qdrant collection '{}' with dimension {}", COLLECTION_NAME, EMBEDDING_DIMENSION);
             }
         } catch (Exception e) {
-            log.warn("Could not ensure Qdrant collection '{}' exists (will be retried on next start): {}",
-                    COLLECTION_NAME, e.getMessage());
+            log.error("Qdrant connection failed: {}", e.getMessage(), e);
+        }
+
+        return this.qdrantClient;
+    }
+
+    @PreDestroy
+    public void close() {
+        if (this.qdrantClient != null) {
+            this.qdrantClient.close();
         }
     }
 
     @Bean
-    public EmbeddingStore<TextSegment> embeddingStore() {
+    public EmbeddingStore<TextSegment> embeddingStore(QdrantClient qdrantClient) {
         return QdrantEmbeddingStore.builder()
-                .host(qdrantHost)
-                .port(qdrantPort)
-                .useTls(useTls)
+                .client(qdrantClient)
                 .collectionName(COLLECTION_NAME)
                 .build();
     }
 
     @Bean
     public EmbeddingModel embeddingModel() {
-        // Use free local embeddings instead of OpenAI
         return new AllMiniLmL6V2QuantizedEmbeddingModel();
     }
 
     @Bean
     public ChatLanguageModel chatLanguageModel() {
-        // Use Groq's OpenAI compatible API
         return OpenAiChatModel.builder()
                 .baseUrl(groqBaseUrl)
                 .apiKey(groqApiKey)
