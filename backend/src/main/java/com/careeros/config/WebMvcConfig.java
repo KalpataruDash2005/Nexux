@@ -9,16 +9,6 @@ import java.util.Arrays;
 
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
-
-    @Value("${app.cors.allowed-origins}")
-    private String[] allowedOrigins;
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins(allowedOrigins)
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
-                .allowedHeaders("*")
-                .allowCredentials(true);
-    }
+    // CORS is handled exclusively by Spring Security (SecurityConfig.java)
+    // to prevent conflicts and ensure preflight requests are caught early.
 }

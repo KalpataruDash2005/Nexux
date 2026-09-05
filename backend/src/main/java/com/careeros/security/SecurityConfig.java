@@ -88,12 +88,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> origins = new java.util.ArrayList<>(Arrays.asList(allowedOrigins));
-        configuration.setAllowedOriginPatterns(origins);
+        List<String> origins = java.util.Arrays.stream(allowedOrigins)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(java.util.stream.Collectors.toList());
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("authorization", "content-type", "x-auth-token", "origin", "accept"));
-        configuration.setExposedHeaders(List.of("x-auth-token"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setExposedHeaders(List.of("Authorization", "x-auth-token"));
         configuration.setAllowCredentials(true);
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
