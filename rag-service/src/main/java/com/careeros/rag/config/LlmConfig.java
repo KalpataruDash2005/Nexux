@@ -62,7 +62,7 @@ public class LlmConfig {
         @Value("${llm.groq.api-key}")
         private String groqApiKey;
 
-        @Value("${llm.groq.model:llama3-8b-8192}")
+        @Value("${llm.groq.model:llama-3.1-8b-instant}")
         private String groqModelName;
 
         @Bean

@@ -28,7 +28,7 @@ public class RagAnswerService {
     @Value("${llm.provider:groq}")
     private String llmProvider;
 
-    @Value("${llm.groq.model:llama3-8b-8192}")
+    @Value("${llm.groq.model:llama-3.1-8b-instant}")
     private String groqModel;
 
     public RagAnswerService(RagSearchService searchService,

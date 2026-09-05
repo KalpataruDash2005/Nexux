@@ -54,7 +54,7 @@ public class RagController {
         return ragAnswerService.askStream(request);
     }
 
-    @PostMapping("/documents/upload")
+    @PostMapping(value = "/documents/upload", produces = "application/json")
     public ResponseEntity<com.careeros.rag.dto.UploadDocumentResponse> uploadDocument(
             @RequestParam("workspaceId") String workspaceId,
             @RequestParam("documentId") String documentId,

@@ -83,34 +83,18 @@ public class RagServiceClient {
                     tempFile.length()
             );
 
-            MultiValueMap<String, Object> body =
-                    new LinkedMultiValueMap<>();
-
-            body.add("workspaceId", workspaceId);
-            body.add("documentId", documentId);
-
-            final String finalFilename = originalFilename;
-
-            body.add(
-                    "file",
-                    new FileSystemResource(tempFile) {
-                        @Override
-                        public String getFilename() {
-                            return finalFilename;
-                        }
-                    }
-            );
-
-            log.info(
-                    "Sending document {} to RAG service...",
-                    documentId
-            );
+            org.springframework.http.client.MultipartBodyBuilder builder = new org.springframework.http.client.MultipartBodyBuilder();
+            builder.part("workspaceId", workspaceId);
+            builder.part("documentId", documentId);
+            builder.part("file", new FileSystemResource(tempFile))
+                   .filename(originalFilename);
 
             UploadDocumentResponse response = restClient
                     .post()
                     .uri("/api/rag/documents/upload")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(body)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(builder.build())
                     .retrieve()
                     .body(UploadDocumentResponse.class);
 
@@ -176,27 +160,18 @@ public class RagServiceClient {
 
         try {
 
-            MultiValueMap<String, Object> body =
-                    new LinkedMultiValueMap<>();
-
-            body.add("workspaceId", workspaceId);
-            body.add("documentId", documentId);
-
-            body.add(
-                    "file",
-                    new FileSystemResource(filePath.toFile()) {
-                        @Override
-                        public String getFilename() {
-                            return originalName;
-                        }
-                    }
-            );
+            org.springframework.http.client.MultipartBodyBuilder builder = new org.springframework.http.client.MultipartBodyBuilder();
+            builder.part("workspaceId", workspaceId);
+            builder.part("documentId", documentId);
+            builder.part("file", new FileSystemResource(filePath.toFile()))
+                   .filename(originalName);
 
             UploadDocumentResponse response = restClient
                     .post()
                     .uri("/api/rag/documents/upload")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(body)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(builder.build())
                     .retrieve()
                     .body(UploadDocumentResponse.class);
 
