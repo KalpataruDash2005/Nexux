@@ -89,14 +89,27 @@ public class RagServiceClient {
             builder.part("file", new FileSystemResource(tempFile))
                    .filename(originalFilename);
 
-            UploadDocumentResponse response = restClient
-                    .post()
-                    .uri("/api/rag/documents/upload")
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(builder.build())
-                    .retrieve()
-                    .body(UploadDocumentResponse.class);
+            log.info("RAG_UPLOAD_REQ_START | URL=/api/rag/documents/upload | workspaceId={} | documentId={} | fileName={}", workspaceId, documentId, originalFilename);
+
+            UploadDocumentResponse response = null;
+            try {
+                response = restClient
+                        .post()
+                        .uri("/api/rag/documents/upload")
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .body(builder.build())
+                        .retrieve()
+                        .body(UploadDocumentResponse.class);
+                
+                log.info("RAG_UPLOAD_REQ_SUCCESS | response={}", response);
+            } catch (org.springframework.web.client.RestClientResponseException ex) {
+                log.error("RAG_UPLOAD_REQ_FAILED | status={} | responseBody={}", ex.getStatusCode(), ex.getResponseBodyAsString(), ex);
+                throw ex;
+            } catch (Exception ex) {
+                log.error("RAG_UPLOAD_REQ_FAILED_UNKNOWN | message={}", ex.getMessage(), ex);
+                throw ex;
+            }
 
             log.info(
                     "RAG service successfully processed document {}",

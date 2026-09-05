@@ -93,11 +93,11 @@ public class PdfAssistantService {
         documentRepository.save(doc);
 
         try {
-
             log.info(
-                    "Uploading document {} to RAG service for workspace {}",
+                    "PDF_ASSISTANT_SERVICE_UPLOAD_START | documentId={} | workspaceId={} | fileName={}",
                     doc.getId(),
-                    workspaceId
+                    workspaceId,
+                    file.getOriginalFilename()
             );
 
             RagServiceClient.UploadDocumentResponse ragResponse =
@@ -106,6 +106,9 @@ public class PdfAssistantService {
                             doc.getId(),
                             file
                     );
+
+            log.info("PDF_ASSISTANT_SERVICE_UPLOAD_SUCCESS | documentId={} | ragResponse={}", doc.getId(), ragResponse);
+
 
             doc.setStatus(PdfDocument.Status.READY);
 

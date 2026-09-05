@@ -52,10 +52,11 @@ public class RagDocumentService {
                 .build();
 
         try {
-            qdrantClient.deleteAsync(COLLECTION_NAME, filter).get(10, TimeUnit.SECONDS);
-            log.info("Successfully deleted vectors for document {}", documentId);
+            log.info("RAG_DOCUMENT_DELETE_START | documentId={}", documentId);
+            qdrantClient.deleteAsync(COLLECTION_NAME, filter).get(30, TimeUnit.SECONDS);
+            log.info("RAG_DOCUMENT_DELETE_SUCCESS | documentId={}", documentId);
         } catch (Exception e) {
-            log.error("Failed to delete document vectors from Qdrant", e);
+            log.error("RAG_DOCUMENT_DELETE_FAILED | documentId={} | error={}", documentId, e.getMessage(), e);
             throw new RuntimeException("Failed to delete document vectors: " + e.getMessage(), e);
         }
     }

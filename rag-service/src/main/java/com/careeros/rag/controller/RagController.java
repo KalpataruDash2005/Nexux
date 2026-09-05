@@ -11,9 +11,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
 @RequestMapping(value = "/api/rag", produces = "application/json")
 public class RagController {
+
+    private static final Logger log = LoggerFactory.getLogger(RagController.class);
 
     private final RagIndexingService indexingService;
     private final RagSearchService searchService;
@@ -59,6 +64,7 @@ public class RagController {
             @RequestParam("workspaceId") String workspaceId,
             @RequestParam("documentId") String documentId,
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        log.info("RAG_CONTROLLER_UPLOAD_START | workspaceId={} | documentId={} | fileName={} | fileSize={}", workspaceId, documentId, file.getOriginalFilename(), file.getSize());
         if (workspaceId == null || workspaceId.trim().isEmpty()) {
             throw new IllegalArgumentException("workspaceId must not be blank");
         }
@@ -70,15 +76,31 @@ public class RagController {
         }
 
         // Extract text
-        String extractedText = documentExtractionService.extractText(file);
+        log.info("RAG_CONTROLLER_EXTRACT_START | documentId={}", documentId);
+        String extractedText;
+        try {
+            extractedText = documentExtractionService.extractText(file);
+            log.info("RAG_CONTROLLER_EXTRACT_SUCCESS | documentId={} | extractedLength={}", documentId, extractedText.length());
+        } catch (Exception e) {
+            log.error("RAG_CONTROLLER_EXTRACT_FAILED | documentId={} | error={}", documentId, e.getMessage(), e);
+            throw e;
+        }
 
         // Index extracted text
+        log.info("RAG_CONTROLLER_INDEX_START | documentId={}", documentId);
         IndexRequest indexReq = new IndexRequest();
         indexReq.setWorkspaceId(workspaceId);
         indexReq.setDocumentId(documentId);
         indexReq.setText(extractedText);
 
-        IndexResponse indexRes = indexingService.indexDocument(indexReq);
+        IndexResponse indexRes;
+        try {
+            indexRes = indexingService.indexDocument(indexReq);
+            log.info("RAG_CONTROLLER_INDEX_SUCCESS | documentId={} | chunks={}", documentId, indexRes.getChunksIndexed());
+        } catch (Exception e) {
+            log.error("RAG_CONTROLLER_INDEX_FAILED | documentId={} | error={}", documentId, e.getMessage(), e);
+            throw e;
+        }
 
         String summary = null;
         try {

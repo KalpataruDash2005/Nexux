@@ -44,16 +44,17 @@ public class RagIndexingService {
 
     public void ensureCollection() {
         try {
-            List<String> collections = qdrantClient.listCollectionsAsync().get(10, TimeUnit.SECONDS);
+            log.info("RAG_ENSURE_COLLECTION_START | checking collection {}", COLLECTION_NAME);
+            List<String> collections = qdrantClient.listCollectionsAsync().get(30, TimeUnit.SECONDS);
             if (!collections.contains(COLLECTION_NAME)) {
                 VectorParams params = VectorParams.newBuilder()
                         .setSize(EMBEDDING_DIMENSION)
                         .setDistance(Distance.Cosine)
                         .build();
-                qdrantClient.createCollectionAsync(COLLECTION_NAME, params).get(10, TimeUnit.SECONDS);
+                qdrantClient.createCollectionAsync(COLLECTION_NAME, params).get(30, TimeUnit.SECONDS);
             }
             
-            // Create payload index for workspaceId (idempotent, works even if collection/index already exists)
+            // Create payload index for workspaceId
             qdrantClient.createPayloadIndexAsync(
                     COLLECTION_NAME,
                     "workspaceId",
@@ -62,7 +63,7 @@ public class RagIndexingService {
                     true,
                     null,
                     null
-            ).get(10, TimeUnit.SECONDS);
+            ).get(30, TimeUnit.SECONDS);
 
             // Create payload index for documentId
             qdrantClient.createPayloadIndexAsync(
@@ -73,8 +74,10 @@ public class RagIndexingService {
                     true,
                     null,
                     null
-            ).get(10, TimeUnit.SECONDS);
+            ).get(30, TimeUnit.SECONDS);
+            log.info("RAG_ENSURE_COLLECTION_SUCCESS | collection verified/created");
         } catch (Exception e) {
+            log.error("RAG_ENSURE_COLLECTION_FAILED | error={}", e.getMessage(), e);
             throw new RuntimeException("Failed to ensure Qdrant collection: " + e.getMessage(), e);
         }
     }
@@ -133,10 +136,11 @@ public class RagIndexingService {
         }
 
         try {
-            qdrantClient.upsertAsync(COLLECTION_NAME, points).get(10, TimeUnit.SECONDS);
-            log.info("Successfully indexed {} chunks for document {}", points.size(), request.getDocumentId());
+            log.info("RAG_INDEXING_UPSERT_START | documentId={} | points={}", request.getDocumentId(), points.size());
+            qdrantClient.upsertAsync(COLLECTION_NAME, points).get(30, TimeUnit.SECONDS);
+            log.info("RAG_INDEXING_UPSERT_SUCCESS | documentId={} | chunks={}", request.getDocumentId(), points.size());
         } catch (Exception e) {
-            log.error("Failed to index chunks into Qdrant", e);
+            log.error("RAG_INDEXING_UPSERT_FAILED | documentId={} | error={}", request.getDocumentId(), e.getMessage(), e);
             throw new RuntimeException("Failed to index chunks into Qdrant: " + e.getMessage(), e);
         }
 

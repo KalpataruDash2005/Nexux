@@ -43,10 +43,10 @@ public class DocumentExtractionService {
                 throw new IllegalArgumentException("Unsupported file type: " + fileName + ". Only .txt and .pdf are supported.");
             }
         } catch (IllegalArgumentException e) {
-            log.warn("Validation error during text extraction: {}", e.getMessage());
+            log.warn("RAG_EXTRACTION_VALIDATION_FAILED | fileName={} | error={}", fileName, e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Failed to extract text from document: " + fileName, e);
+            log.error("RAG_EXTRACTION_PROCESS_FAILED | fileName={} | error={}", fileName, e.getMessage(), e);
             throw new RuntimeException("Failed to extract text from document: " + e.getMessage(), e);
         }
     }
