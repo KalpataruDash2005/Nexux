@@ -56,8 +56,8 @@ app:
   qdrant:
     host: ${QDRANT_HOST}
     port: ${QDRANT_PORT:6334}
-    use-tls: ${QDRANT_USE_TLS:false}
-    api-key: ${QDRANT_API_KEY:}
+    api-key: ${QDRANT_API_KEY}
+    use-tls: ${QDRANT_USE_TLS:true}
   openai:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.groq.com/openai/v1}
