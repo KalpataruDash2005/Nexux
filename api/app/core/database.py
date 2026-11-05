@@ -15,13 +15,27 @@ except Exception:
     pass
 
 def get_engine():
-    db_url = settings.effective_database_url
+    import urllib.parse
+    db_url = (settings.effective_database_url or "").strip()
+
+    # Automatically normalize scheme
     if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
-    elif db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
-    elif db_url.startswith("mysql://"):
-        db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
+        db_url = "postgresql://" + db_url[len("postgres://"):]
+
+    # Auto-encode passwords containing special characters (like '@') safely
+    if "://" in db_url and "@" in db_url:
+        scheme, rest = db_url.split("://", 1)
+        if ":" in rest and "@" in rest:
+            user_part, rest2 = rest.split(":", 1)
+            password_part, host_part = rest2.rsplit("@", 1)
+            unquoted = urllib.parse.unquote_plus(password_part)
+            encoded_pw = urllib.parse.quote_plus(unquoted)
+            db_url = f"{scheme}://{user_part}:{encoded_pw}@{host_part}"
+
+    if db_url.startswith("postgresql://") and not db_url.startswith("postgresql+"):
+        db_url = "postgresql+psycopg2://" + db_url[len("postgresql://"):]
+    elif db_url.startswith("mysql://") and not db_url.startswith("mysql+"):
+        db_url = "mysql+pymysql://" + db_url[len("mysql://"):]
         
     connect_args = {}
     if db_url.startswith("sqlite"):
@@ -43,14 +57,17 @@ def get_engine():
         )
     else:
         # PostgreSQL / Supabase
+        connect_args = {"sslmode": "require"}
         if os.getenv("VERCEL") == "1" or ":6543" in db_url:
             return create_engine(
                 db_url,
                 poolclass=NullPool,
+                connect_args=connect_args,
                 pool_pre_ping=True
             )
         return create_engine(
             db_url,
+            connect_args=connect_args,
             pool_pre_ping=settings.DB_POOL_PRE_PING,
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
