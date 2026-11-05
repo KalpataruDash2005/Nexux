@@ -62,13 +62,24 @@ export interface AptitudeQuestionDto {
   createdAt: string;
 }
 
-export const uploadAptitudeSet = async (file: File, title?: string): Promise<AptitudeSetDto> => {
+export const uploadAptitudeSet = async (
+  file: File,
+  title?: string,
+  options?: { onProgress?: (pct: number) => void; signal?: AbortSignal }
+): Promise<AptitudeSetDto> => {
   const form = new FormData();
   form.append('file', file);
   if (title) form.append('title', title);
   const response = await apiClient.post<AptitudeSetDto>('/admin/aptitude/sets', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 180000,
+    signal: options?.signal,
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && options?.onProgress) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        options.onProgress(percent);
+      }
+    },
   });
   return response.data;
 };

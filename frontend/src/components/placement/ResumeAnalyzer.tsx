@@ -11,6 +11,7 @@ import {
 } from '../../services/placementService';
 import { Card, Pill, LoadingSpinner, ErrorBanner, Ring, EmptyState } from './ui';
 import { useToast } from '../ui/Toast';
+import DocumentUploadProgress, { UploadStage } from '../ui/DocumentUploadProgress';
 
 const STEPS = ['Extracting text...', 'Analyzing structure...', 'Scoring ATS...', 'Generating insights...'];
 
@@ -286,9 +287,12 @@ const ResumeAnalyzer: React.FC = () => {
   const [current, setCurrent] = useState<ResumeResponse | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [uploadStage, setUploadStage] = useState<UploadStage>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [stepIdx, setStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadLatest = useCallback(async () => {
     setLatestLoading(true);
@@ -319,15 +323,52 @@ const ResumeAnalyzer: React.FC = () => {
     };
   }, [analyzing]);
 
+  const handleCancelAnalyze = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setUploadStage('failed');
+      setError('Analysis cancelled by user.');
+      setAnalyzing(false);
+    }
+  };
+
   const handleAnalyze = async (selected: File) => {
+    if (analyzing) return;
     setFile(selected);
     setError(null);
     setAnalyzing(true);
+    setUploadStage('preparing');
+    setUploadProgress(0);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
-      const result = await analyzeResume(selected);
+      setUploadStage('uploading');
+      const result = await analyzeResume(selected, {
+        signal: controller.signal,
+        onProgress: (pct) => {
+          setUploadProgress(pct);
+          if (pct >= 100) {
+            setUploadStage('processing');
+          }
+        },
+      });
+      setUploadStage('completed');
+      setUploadProgress(100);
       setCurrent(result);
-    } catch (err) {
-      setError((err as Error).message);
+      setTimeout(() => {
+        setUploadStage('idle');
+      }, 2500);
+    } catch (err: any) {
+      if (controller.signal.aborted) {
+        setUploadStage('failed');
+        setError('Resume upload cancelled.');
+      } else {
+        const msg = (err as Error).message || 'Resume analysis failed.';
+        setUploadStage('failed');
+        setError(msg);
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -354,33 +395,45 @@ const ResumeAnalyzer: React.FC = () => {
         </div>
       </Card>
 
-      {analyzing && (
-        <Card className="phq-fade-up">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                <FileText size={26} className="phq-pulse-soft" />
-              </div>
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-foreground">{file?.name}</p>
-              <div className="mt-3 space-y-2">
-                {STEPS.map((s, i) => (
-                  <div key={s} className="flex items-center gap-2">
-                    {i < stepIdx ? (
-                      <CheckCircle2 size={14} className="text-emerald-600" />
-                    ) : i === stepIdx ? (
-                      <Loader2 size={14} className="animate-spin text-emerald-600" />
-                    ) : (
-                      <span className="h-3.5 w-3.5 rounded-full border border-border" />
-                    )}
-                    <span className={`text-sm ${i <= stepIdx ? 'text-foreground' : 'text-muted'}`}>{s}</span>
+      {uploadStage !== 'idle' && (
+        <div className="phq-fade-up space-y-4">
+          <DocumentUploadProgress
+            stage={uploadStage}
+            progress={uploadProgress}
+            fileName={file?.name}
+            fileSize={file?.size}
+            errorMessage={error || undefined}
+            onCancel={handleCancelAnalyze}
+          />
+          {uploadStage === 'processing' && (
+            <Card className="phq-fade-up">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                    <FileText size={24} className="phq-pulse-soft" />
                   </div>
-                ))}
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-foreground text-sm">{file?.name}</p>
+                  <div className="mt-2.5 space-y-1.5">
+                    {STEPS.map((s, i) => (
+                      <div key={s} className="flex items-center gap-2">
+                        {i < stepIdx ? (
+                          <CheckCircle2 size={13} className="text-emerald-600" />
+                        ) : i === stepIdx ? (
+                          <Loader2 size={13} className="animate-spin text-emerald-600" />
+                        ) : (
+                          <span className="h-3 w-3 rounded-full border border-border" />
+                        )}
+                        <span className={`text-xs ${i <= stepIdx ? 'text-foreground' : 'text-muted'}`}>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </Card>
+            </Card>
+          )}
+        </div>
       )}
 
       {error && (

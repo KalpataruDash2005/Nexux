@@ -8,7 +8,7 @@ $RECYCLE.BIN/
 *.tmp
 *.bak
 
-# JetBrains IDE (IntelliJ, WebStorm, etc.)
+# JetBrains IDE (IntelliJ, WebStorm, PyCharm, etc.)
 .idea/
 *.iml
 *.iws
@@ -21,61 +21,92 @@ out/
 *.code-workspace
 .workspace/
 
-# Node/npm (Frontend)
+# Node/npm (Frontends)
 node_modules/
+**/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 dist/
+**/dist/
 build/
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.staging.local
-.env.*
-!.env.example
+**/build/
 
-# Java/Maven (Backend)
+# Environment Variables & Secrets (CRITICAL)
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Python / FastAPI
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+**/.pytest_cache/
+.coverage
+htmlcov/
+
+# Java / Maven (Nexaura-SpringBoot)
 target/
+**/target/
 *.class
-*.bluej
-*.pkg
-*.ctxt
 *.jar
 *.war
-*.nar
 *.ear
 *.zip
 *.tar.gz
 *.rar
 hs_err_pid*
 replay_pid*
-backend/apache-maven-*/
+**/apache-maven-*/
+Nexaura-SpringBoot/backend/apache-maven-*/
 
-# Local embedded Maven
-backend/apache-maven-*/
+# Runtime storage & temp uploads (Nexaura-SpringBoot)
+**/storage/
+Nexaura-SpringBoot/backend/storage/
+Nexaura-SpringBoot/backend/[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*/
+**/patch*.py
 
-# Runtime storage & temp uploads
-backend/storage/
-backend/[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*/
-backend/patch*.py
-frontend/patch*.py
-
-# Database & Local Infrastructure
+# Database & Local Infrastructure (Nexaura-SpringBoot)
 docker/mysql/data/
 docker/n8n/data/
+**/data/
 
 # General Logs & Cache
 *.log
+**/*.log
 .eslintcache
 .stylelintcache
 .cache/
 .sass-cache/
 
-# IDE & Temp
+# IDE & Eclipse
 .apt_generated/
 .classpath
 .project
@@ -84,8 +115,19 @@ docker/n8n/data/
 
 # Supabase
 supabase/.temp/
+**/supabase/.temp/
 
-# Environment & Config
-QDRANT_HOST
-QDRANT_PORT
-QDRANT_API_KEY
+# Vercel
+.vercel
+**/.vercel
+
+# Excluded projects & local runtimes on Deployment branch
+Nexaura-SpringBoot/
+nexux-node-python/
+Nexaura-Deployment/
+uploads/
+**/uploads/
+*.pdf
+test_doc.py
+test_downloaded*
+test_*.pdf

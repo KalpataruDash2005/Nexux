@@ -335,8 +335,12 @@ const EvaluationPanel: React.FC<{
             {passed ? 'Passed' : 'Needs work'} {totalScore != null && `· ${Math.round(totalScore)}/100`}
           </Pill>
         )}
-        <Pill tone="violet">Time: {evaluation.timeComplexity || '—'}</Pill>
-        <Pill tone="cyan">Space: {evaluation.spaceComplexity || '—'}</Pill>
+        <Pill tone="violet">
+          Time: {evaluation.timeComplexity || '—'}{evaluation.timeComplexity && !evaluation.timeComplexity.includes('Estimated') ? ' (Estimated)' : ''}
+        </Pill>
+        <Pill tone="cyan">
+          Space: {evaluation.spaceComplexity || '—'}{evaluation.spaceComplexity && !evaluation.spaceComplexity.includes('Estimated') ? ' (Estimated)' : ''}
+        </Pill>
       </div>
 
       {testResults.length > 0 && (
@@ -359,6 +363,43 @@ const EvaluationPanel: React.FC<{
                 <div className="text-xs font-medium text-rose-600">Failed</div>
               </div>
             </div>
+          </div>
+          <div className="mt-3 space-y-2">
+            {testResults.map((tc, idx) => (
+              <div
+                key={idx}
+                className={`rounded-xl border p-3 text-xs transition-colors ${
+                  tc.passed ? 'border-emerald-200 bg-emerald-50/30' : 'border-rose-200 bg-rose-50/30'
+                }`}
+              >
+                <div className="flex items-center justify-between font-semibold">
+                  <span className={tc.passed ? 'text-emerald-700' : 'text-rose-700'}>
+                    {tc.hidden ? `Hidden Test Case #${idx + 1}` : `Test Case #${idx + 1}`} — {tc.passed ? 'Passed' : 'Failed'}
+                  </span>
+                </div>
+                {!tc.hidden && (
+                  <div className="mt-1.5 space-y-1 font-mono text-xs">
+                    <div>
+                      <span className="text-muted">Input: </span>
+                      <span className="text-foreground">{tc.input}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted">Expected: </span>
+                      <span className="text-foreground">{tc.expectedOutput}</span>
+                    </div>
+                    {tc.actualOutput && (
+                      <div>
+                        <span className="text-muted">Actual: </span>
+                        <span className="text-foreground">{tc.actualOutput}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {tc.error && (
+                  <div className="mt-1 font-mono text-xs text-rose-600">{tc.error}</div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

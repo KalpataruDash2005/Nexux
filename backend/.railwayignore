@@ -1,6 +1,0 @@
-apache-maven-*/
-target/
-storage/
-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*-[0-9a-f]*/
-start-*.cmd
-*.log

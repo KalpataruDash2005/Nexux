@@ -10,11 +10,11 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8082',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
       '/oauth2/authorization': {
-        target: 'http://localhost:8082',
+        target: 'http://localhost:8000',
         changeOrigin: true,
       },
     },

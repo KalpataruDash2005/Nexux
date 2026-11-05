@@ -1,1 +1,0 @@
-import io.qdrant.client.QdrantClient; import io.qdrant.client.grpc.Collections.PayloadSchemaType; import io.qdrant.client.grpc.Collections.PayloadIndexParams; public class TestClient { public void test(QdrantClient client) { client.createPayloadIndexAsync("col", "field", PayloadSchemaType.Keyword, PayloadIndexParams.newBuilder().build(), true, null, null); } }

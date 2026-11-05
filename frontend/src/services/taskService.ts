@@ -30,6 +30,16 @@ export interface TaskSummary {
 
 export interface AiPlanResponse {
   plan: string;
+  pendingCount?: number;
+  generatedAt?: string;
+  tasksIncluded?: { id: string; title: string }[];
+}
+
+export interface PersistAiPlanResponse {
+  success: boolean;
+  message: string;
+  persistedAt: string;
+  updatedTasksCount: number;
 }
 
 export interface AssistantRequest {
@@ -50,6 +60,7 @@ export interface AssistantResponse {
   replyMessage: string;
   action: string;
   updatedTask: Task | null;
+  createdTask?: Task | null;
   newChunks: AssistantChunk[];
 }
 
@@ -137,6 +148,18 @@ export async function generateAiPlan(): Promise<AiPlanResponse> {
     return res.data;
   } catch (err) {
     throw new Error(errorMessage(err, 'Could not generate an AI plan.'));
+  }
+}
+
+export async function persistAiPlan(plan: string, saveNotesToTasks: boolean = true): Promise<PersistAiPlanResponse> {
+  try {
+    const res = await apiClient.post<PersistAiPlanResponse>(`${base}/ai-plan/persist`, {
+      plan,
+      saveNotesToTasks
+    });
+    return res.data;
+  } catch (err) {
+    throw new Error(errorMessage(err, 'Could not save your AI plan.'));
   }
 }
 

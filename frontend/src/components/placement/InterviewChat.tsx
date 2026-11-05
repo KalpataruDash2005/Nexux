@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, User, Send, ArrowLeft, ChevronDown, CheckCircle2, XCircle, Lightbulb, Trophy } from 'lucide-react';
+import { Bot, User, Send, ArrowLeft, ChevronDown, CheckCircle2, XCircle, Lightbulb, Trophy, AlertTriangle, HelpCircle } from 'lucide-react';
 import {
   getSession, sendMessage, endSession, PlacementSession, InterviewFeedback,
 } from '../../services/placementService';
@@ -281,21 +281,49 @@ const FeedbackPanel: React.FC<{ feedback: InterviewFeedback }> = ({ feedback }) 
   const scores = feedback.scores ?? {};
   const strengths = feedback.strengths ?? [];
   const weaknesses = feedback.weaknesses ?? [];
-  const tips = feedback.improvementTips ?? [];
+  const tips = (feedback.improvements && feedback.improvements.length > 0) ? feedback.improvements : (feedback.improvementTips ?? []);
+  const correctConcepts = feedback.correctConcepts ?? [];
+  const incorrectClaims = feedback.incorrectClaims ?? [];
+  const missingConcepts = feedback.missingConcepts ?? [];
+
+  const scoreRationale = typeof feedback.scoreExplanation === 'object' && feedback.scoreExplanation !== null
+    ? (feedback.scoreExplanation.rationale || feedback.scoreExplanation.technical || '')
+    : (typeof feedback.scoreExplanation === 'string' ? feedback.scoreExplanation : '');
+
   const axes: { label: string; value: number }[] = [
-    { label: 'Confidence', value: scores.confidence ?? 0 },
+    { label: 'Technical Accuracy', value: scores.technicalAccuracy ?? 0 },
+    { label: 'Completeness', value: scores.completeness ?? 0 },
+    { label: 'Structure', value: scores.structure ?? 0 },
     { label: 'Communication', value: scores.communication ?? 0 },
     { label: 'Grammar', value: scores.grammar ?? 0 },
-    { label: 'Technical Accuracy', value: scores.technicalAccuracy ?? 0 },
-    { label: 'Structure', value: scores.structure ?? 0 },
-    { label: 'Completeness', value: scores.completeness ?? 0 },
+    { label: 'Confidence (Written tone)', value: scores.confidence ?? 0 },
   ];
+
+  if (feedback.isDegradedEvaluation || feedback.evaluationStatus === 'EVALUATION_FAILED') {
+    return (
+      <div className="phq-fade-in mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-600" />
+          <div>
+            <p className="font-bold text-amber-800">Automated Evaluation Degraded</p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              Live technical evaluation encountered a temporary provider issue. No default passing score was fabricated. You can re-send your answer or continue with the interview.
+            </p>
+            {scoreRationale && <p className="mt-2 text-xs italic text-amber-800">Detail: {scoreRationale}</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="phq-fade-in mt-3 rounded-2xl border border-border bg-surface-tint p-4">
       <div className="flex items-center gap-4">
-        <div className="shrink-0">
+        <div className="shrink-0 text-center">
           <Ring value={feedback.score ?? 0} size={72} stroke={7} gradientId="fbRing" label={`${Math.round(feedback.score ?? 0)}`} sublabel="score" />
+          <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-muted">
+            {feedback.evaluationStatus === 'REJECTED_EMPTY' ? 'Empty Answer' : feedback.score >= 80 ? 'Proficient' : feedback.score >= 50 ? 'Developing' : 'Needs Work'}
+          </span>
         </div>
         <div className="grid flex-1 grid-cols-2 gap-x-5 gap-y-2">
           {axes.map((a) => (
@@ -304,33 +332,90 @@ const FeedbackPanel: React.FC<{ feedback: InterviewFeedback }> = ({ feedback }) 
         </div>
       </div>
 
+      {scoreRationale && (
+        <div className="mt-3 rounded-xl border border-primary-soft bg-white/70 p-3 text-xs text-foreground">
+          <span className="font-bold text-primary">Score Rationale: </span>
+          {scoreRationale}
+        </div>
+      )}
+
+      {/* Detailed Technical Concepts Breakdown */}
+      {(correctConcepts.length > 0 || incorrectClaims.length > 0 || missingConcepts.length > 0) && (
+        <div className="mt-4 space-y-3 rounded-xl border border-border bg-white/60 p-3">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted">Technical Concept Breakdown</p>
+          
+          {correctConcepts.length > 0 && (
+            <div>
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                <CheckCircle2 size={13} /> Correct Concepts Identified
+              </p>
+              <ul className="space-y-1 pl-4">
+                {correctConcepts.map((c, i) => (
+                  <li key={i} className="list-disc text-xs text-foreground">{c}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {incorrectClaims.length > 0 && (
+            <div>
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-rose-600">
+                <XCircle size={13} /> Inaccurate / Incorrect Claims
+              </p>
+              <ul className="space-y-1 pl-4">
+                {incorrectClaims.map((c, i) => (
+                  <li key={i} className="list-disc text-xs text-rose-700">{c}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {missingConcepts.length > 0 && (
+            <div>
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-bold text-amber-700">
+                <HelpCircle size={13} /> Key Concepts Omitted / Edge Cases
+              </p>
+              <ul className="space-y-1 pl-4">
+                {missingConcepts.map((c, i) => (
+                  <li key={i} className="list-disc text-xs text-muted">{c}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div>
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700">
-            <CheckCircle2 size={13} /> Strengths
-          </p>
-          <ul className="space-y-1">
-            {strengths.map((s, i) => (
-              <li key={i} className="text-sm text-foreground">· {s}</li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-rose-600">
-            <XCircle size={13} /> To improve
-          </p>
-          <ul className="space-y-1">
-            {weaknesses.map((s, i) => (
-              <li key={i} className="text-sm text-foreground">· {s}</li>
-            ))}
-          </ul>
-        </div>
+        {strengths.length > 0 && (
+          <div>
+            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700">
+              <CheckCircle2 size={13} /> Strengths
+            </p>
+            <ul className="space-y-1">
+              {strengths.map((s, i) => (
+                <li key={i} className="text-sm text-foreground">· {s}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {weaknesses.length > 0 && (
+          <div>
+            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-rose-600">
+              <XCircle size={13} /> Gaps & Weaknesses
+            </p>
+            <ul className="space-y-1">
+              {weaknesses.map((s, i) => (
+                <li key={i} className="text-sm text-foreground">· {s}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {tips.length > 0 && (
         <div className="mt-4">
           <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-violet-700">
-            <Lightbulb size={13} /> Improvement tips
+            <Lightbulb size={13} /> Actionable Improvement Tips
           </p>
           <ul className="space-y-1">
             {tips.map((t, i) => (
@@ -345,7 +430,7 @@ const FeedbackPanel: React.FC<{ feedback: InterviewFeedback }> = ({ feedback }) 
           onClick={() => setOpen((o) => !o)}
           className="mt-4 flex w-full items-center justify-between rounded-xl border border-primary-soft bg-primary-tint px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-soft"
         >
-          View ideal answer
+          View exemplary ideal answer
           <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       )}

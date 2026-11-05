@@ -436,7 +436,15 @@ const Tasks: React.FC = () => {
         </div>
       </div>
 
-      <AiPlanModal open={planOpen} onClose={() => setPlanOpen(false)} />
+      <AiPlanModal
+        open={planOpen}
+        onClose={() => setPlanOpen(false)}
+        onOpenCreateTask={() => {
+          const el = document.querySelector('input[placeholder="What do you need to do?"]') as HTMLInputElement;
+          el?.focus();
+          el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }}
+      />
     </div>
   );
 };

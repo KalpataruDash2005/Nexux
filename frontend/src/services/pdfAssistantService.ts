@@ -44,11 +44,22 @@ export async function listPdfDocuments(workspaceId: string): Promise<PdfDocument
   return res.data;
 }
 
-export async function uploadPdfDocument(workspaceId: string, file: File): Promise<PdfUploadResponse> {
+export async function uploadPdfDocument(
+  workspaceId: string,
+  file: File,
+  options?: { onProgress?: (pct: number) => void; signal?: AbortSignal }
+): Promise<PdfUploadResponse> {
   const form = new FormData();
   form.append('file', file);
   const res = await apiClient.post<PdfUploadResponse>(base(workspaceId), form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    signal: options?.signal,
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && options?.onProgress) {
+        const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        options.onProgress(percent);
+      }
+    },
   });
   return res.data;
 }
@@ -151,6 +162,25 @@ export async function getPdfChatHistory(
   documentId: string
 ): Promise<PdfChatMessage[]> {
   const res = await apiClient.get<PdfChatMessage[]>(`${base(workspaceId)}/${documentId}/chat`);
+  return res.data;
+}
+
+export async function fetchPdfBlob(workspaceId: string, documentId: string): Promise<Blob> {
+  const res = await apiClient.get<Blob>(`${base(workspaceId)}/${documentId}/file`, {
+    responseType: 'blob',
+  });
+  return new Blob([res.data], { type: 'application/pdf' });
+}
+
+export function getPdfDocumentFileUrl(workspaceId: string, documentId: string): string {
+  const baseURL = apiClient.defaults.baseURL || '/api/v1';
+  const token = localStorage.getItem('token');
+  const query = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `${baseURL}${base(workspaceId)}/${documentId}/file${query}`;
+}
+
+export async function regeneratePdfSummary(workspaceId: string, documentId: string): Promise<PdfDocument> {
+  const res = await apiClient.post<PdfDocument>(`${base(workspaceId)}/${documentId}/summarize`);
   return res.data;
 }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -15,6 +15,7 @@ import {
   AptitudeSetDto,
 } from '../services/adminService';
 import { useToast } from '../components/ui/Toast';
+import DocumentUploadProgress, { UploadStage } from '../components/ui/DocumentUploadProgress';
 import { JobDto } from '../types/job';
 
 type Tab = 'overview' | 'feedback' | 'aptitude';
@@ -37,6 +38,11 @@ const AdminDashboard: React.FC = () => {
   const [feedback, setFeedback] = useState<FeedbackAdminDto[]>([]);
   const [sets, setSets] = useState<AptitudeSetDto[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadStage, setUploadStage] = useState<UploadStage>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [setTitle, setSetTitle] = useState('');
 
   if (user?.role?.toUpperCase() !== 'ADMIN') {
@@ -82,23 +88,67 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleCancelUpload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setUploadStage('failed');
+      setUploadError('Upload cancelled by user.');
+      setUploading(false);
+    }
+  };
+
   const handleUpload = async (file: File | undefined) => {
     if (!file) {
       toast('Please choose a PDF file first', 'error');
       return;
     }
+    if (uploading) {
+      toast('An upload is already in progress.', 'error');
+      return;
+    }
+    setUploadFile(file);
+    setUploadProgress(0);
+    setUploadStage('preparing');
+    setUploadError(null);
     setUploading(true);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
-      await uploadAptitudeSet(file, setTitle.trim() || undefined);
+      setUploadStage('uploading');
+      await uploadAptitudeSet(file, setTitle.trim() || undefined, {
+        signal: controller.signal,
+        onProgress: (pct) => {
+          setUploadProgress(pct);
+          if (pct >= 100) {
+            setUploadStage('processing');
+          }
+        },
+      });
+      setUploadStage('completed');
+      setUploadProgress(100);
       setSetTitle('');
       toast('Aptitude set imported successfully', 'success');
       const updated = await getAptitudeSets();
       setSets(updated);
-    } catch (err) {
-      const resp = err && typeof err === 'object' && 'response' in err
-        ? (err as { response?: { data?: { message?: string } } }).response
-        : undefined;
-      toast(resp?.data?.message || 'Could not import the aptitude set', 'error');
+      setTimeout(() => {
+        setUploadStage('idle');
+        setUploadFile(null);
+      }, 3000);
+    } catch (err: any) {
+      if (controller.signal.aborted) {
+        setUploadStage('failed');
+        setUploadError('Upload cancelled.');
+      } else {
+        const resp = err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response
+          : undefined;
+        const msg = resp?.data?.message || err?.message || 'Could not import the aptitude set';
+        setUploadStage('failed');
+        setUploadError(msg);
+        toast(msg, 'error');
+      }
     } finally {
       setUploading(false);
     }
@@ -280,6 +330,18 @@ const AdminDashboard: React.FC = () => {
                 {uploading ? 'Processing PDF — extracting questions...' : 'Click to choose a PDF — questions are extracted and added to randomized tests'}
               </span>
             </label>
+            {uploadStage !== 'idle' && (
+              <div className="mt-4">
+                <DocumentUploadProgress
+                  stage={uploadStage}
+                  progress={uploadProgress}
+                  fileName={uploadFile?.name}
+                  fileSize={uploadFile?.size}
+                  errorMessage={uploadError || undefined}
+                  onCancel={handleCancelUpload}
+                />
+              </div>
+            )}
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">

@@ -64,6 +64,10 @@ const InterviewHub: React.FC<PlacementNavProps & {
   }, [openSessionId, onSessionOpened]);
 
   const handleStart = async () => {
+    if (mode === 'RESUME' && !resumeId) {
+      setStartError('Please select a resume for Resume-based mode, or switch to AI-only mode.');
+      return;
+    }
     setStarting(true);
     setStartError(null);
     try {

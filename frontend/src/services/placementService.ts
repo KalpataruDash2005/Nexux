@@ -153,7 +153,7 @@ export interface StartSessionResponse {
 }
 
 export interface FeedbackScores {
-  confidence: number;
+  confidence?: number | null;
   communication: number;
   grammar: number;
   technicalAccuracy: number;
@@ -163,15 +163,24 @@ export interface FeedbackScores {
 
 export interface InterviewFeedback {
   score: number;
+  overallScore?: number;
   scores: FeedbackScores;
+  categoryScores?: Record<string, number>;
+  correctConcepts?: string[];
+  incorrectClaims?: string[];
+  missingConcepts?: string[];
   strengths: string[];
   weaknesses: string[];
+  improvements?: string[];
   improvementTips: string[];
   idealAnswer: string;
+  scoreExplanation?: Record<string, string> | string;
   nextQuestion: string;
   nextDifficulty: string;
   questionCount: number;
   shouldEnd: boolean;
+  isDegradedEvaluation?: boolean;
+  evaluationStatus?: string;
 }
 
 export interface MessageResponse {
@@ -384,13 +393,23 @@ export function errorMessage(err: unknown, fallback: string): string {
 
 const base = '/placement';
 
-export async function analyzeResume(file: File): Promise<ResumeResponse> {
+export async function analyzeResume(
+  file: File,
+  options?: { onProgress?: (pct: number) => void; signal?: AbortSignal }
+): Promise<ResumeResponse> {
   const form = new FormData();
   form.append('file', file);
   try {
     const res = await apiClient.post<ResumeResponse>(`${base}/resume/analyze`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 180000,
+      signal: options?.signal,
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && options?.onProgress) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          options.onProgress(percent);
+        }
+      },
     });
     return res.data;
   } catch (err) {
