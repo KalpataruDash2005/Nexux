@@ -134,6 +134,11 @@ class Settings(BaseSettings):
     # Supabase Object Storage (for persistent PDF storage in serverless)
     SUPABASE_URL: Optional[str] = None
     SUPABASE_KEY: Optional[str] = None
+    SUPABASE_SECRET_KEY: Optional[str] = None
+
+    @property
+    def effective_supabase_key(self) -> Optional[str]:
+        return self.SUPABASE_KEY or self.SUPABASE_SECRET_KEY
     SUPABASE_STORAGE_BUCKET: str = "documents"
 
     class Config:

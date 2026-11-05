@@ -38,13 +38,13 @@ def _resolve_upload_dir() -> str:
 UPLOAD_DIR = _resolve_upload_dir()
 
 def _upload_to_supabase_storage(file_bytes: bytes, filename: str):
-    if not (settings.SUPABASE_URL and settings.SUPABASE_KEY):
+    if not (settings.SUPABASE_URL and settings.effective_supabase_key):
         return
     try:
         import requests
         url = f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/{settings.SUPABASE_STORAGE_BUCKET}/{filename}"
         headers = {
-            "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+            "Authorization": f"Bearer {settings.effective_supabase_key}",
             "Content-Type": "application/pdf",
             "x-upsert": "true"
         }
@@ -57,12 +57,12 @@ def _upload_to_supabase_storage(file_bytes: bytes, filename: str):
         logger.warning(f"[SUPABASE-STORAGE] Supabase Storage upload exception: {e}")
 
 def _download_from_supabase_storage(filename: str) -> Optional[bytes]:
-    if not (settings.SUPABASE_URL and settings.SUPABASE_KEY):
+    if not (settings.SUPABASE_URL and settings.effective_supabase_key):
         return None
     try:
         import requests
         url = f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/authenticated/{settings.SUPABASE_STORAGE_BUCKET}/{filename}"
-        headers = {"Authorization": f"Bearer {settings.SUPABASE_KEY}"}
+        headers = {"Authorization": f"Bearer {settings.effective_supabase_key}"}
         res = requests.get(url, headers=headers, timeout=8.0)
         if res.status_code == 200:
             return res.content
