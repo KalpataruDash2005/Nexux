@@ -1,0 +1,12 @@
+Nexaura-SpringBoot/
+Nexaura-Deployment/
+nexux-node-python/
+.env
+.env.*
+.vscode/
+*.pyc
+__pycache__/
+node_modules/
+dist/
+build/
+*.log
