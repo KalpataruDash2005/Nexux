@@ -746,18 +746,12 @@ const PdfAssistantPanel: React.FC<PdfAssistantPanelProps> = ({ workspaceId }) =>
               </button>
             </div>
           ) : pdfBlobUrl ? (
-            <object
+            <iframe
               key={pdfBlobUrl}
-              data={pdfBlobUrl}
-              type="application/pdf"
+              src={pdfBlobUrl}
+              title={selected.fileName}
               className="w-full h-full border-0 bg-white"
-            >
-              <iframe
-                src={pdfBlobUrl}
-                title={selected.fileName}
-                className="w-full h-full border-0 bg-white"
-              />
-            </object>
+            />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-gray-400">
               <FileText size={36} className="text-gray-300 mb-2" />

@@ -39,31 +39,31 @@ export const DocumentUploadProgress: React.FC<DocumentUploadProgressProps> = ({
     switch (stage) {
       case 'preparing':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 shrink-0">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 shrink-0">
             <Loader2 size={11} className="animate-spin text-amber-600" /> Preparing
           </span>
         );
       case 'uploading':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200 shrink-0">
-            <Loader2 size={11} className="animate-spin text-sky-600" /> Uploading {Math.round(progress)}%
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200 shrink-0">
+            <Loader2 size={11} className="animate-spin text-purple-600" /> Uploading {Math.round(progress)}%
           </span>
         );
       case 'processing':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50/90 px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-xs shrink-0">
-            <Loader2 size={11} className="animate-spin text-indigo-600" /> AI / RAG Indexing
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-700 bg-purple-50/90 px-2.5 py-0.5 rounded-full border border-purple-200 shadow-xs shrink-0">
+            <Sparkles size={11} className="text-purple-600 animate-pulse" /> AI / RAG Indexing
           </span>
         );
       case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shrink-0">
             <CheckCircle2 size={11} className="text-emerald-600" /> Ready
           </span>
         );
       case 'failed':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 shrink-0">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 shrink-0">
             <XCircle size={11} className="text-rose-600" /> Failed
           </span>
         );
@@ -71,8 +71,8 @@ export const DocumentUploadProgress: React.FC<DocumentUploadProgressProps> = ({
   };
 
   const getProgressWidth = () => {
-    if (stage === 'preparing') return 8;
-    if (stage === 'uploading') return Math.max(8, Math.min(progress, 95));
+    if (stage === 'preparing') return 12;
+    if (stage === 'uploading') return Math.max(12, Math.min(progress, 95));
     if (stage === 'processing') return 98;
     if (stage === 'completed') return 100;
     return 100;
@@ -81,8 +81,8 @@ export const DocumentUploadProgress: React.FC<DocumentUploadProgressProps> = ({
   const getProgressBarColor = () => {
     if (stage === 'failed') return 'bg-rose-500';
     if (stage === 'completed') return 'bg-emerald-500';
-    if (stage === 'processing') return 'bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600';
-    return 'bg-gradient-to-r from-sky-500 to-indigo-600';
+    if (stage === 'processing') return 'bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-600';
+    return 'bg-gradient-to-r from-purple-500 to-indigo-600';
   };
 
   const descriptionText =
@@ -95,28 +95,28 @@ export const DocumentUploadProgress: React.FC<DocumentUploadProgressProps> = ({
 
   return (
     <div
-      className={`rounded-xl border p-3 transition-all duration-300 shadow-xs ${
+      className={`rounded-xl border p-3 transition-all duration-300 shadow-sm ${
         stage === 'failed'
           ? 'border-rose-200 bg-rose-50/50'
           : stage === 'completed'
           ? 'border-emerald-200 bg-emerald-50/50'
-          : 'border-indigo-100 bg-white ring-1 ring-indigo-50'
+          : 'border-purple-200 bg-white ring-1 ring-purple-50'
       } ${className}`}
     >
       {/* Top row: Icon + Document Title + Cancel button */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div
             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
               stage === 'failed'
                 ? 'bg-rose-100 text-rose-600'
                 : stage === 'completed'
                 ? 'bg-emerald-100 text-emerald-600'
-                : 'bg-indigo-50 text-indigo-600'
+                : 'bg-purple-100 text-purple-600'
             }`}
           >
             {stage === 'processing' ? (
-              <Sparkles size={16} className="text-indigo-600 animate-pulse" />
+              <Sparkles size={16} className="text-purple-600 animate-pulse" />
             ) : (
               <FileText size={16} />
             )}
@@ -138,7 +138,7 @@ export const DocumentUploadProgress: React.FC<DocumentUploadProgressProps> = ({
             type="button"
             onClick={onCancel}
             title="Cancel upload"
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors shrink-0"
+            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors shrink-0"
           >
             <X size={14} />
           </button>
@@ -146,16 +146,16 @@ export const DocumentUploadProgress: React.FC<DocumentUploadProgressProps> = ({
       </div>
 
       {/* Middle row: Stage badge and clear status description */}
-      <div className="mt-2.5 flex flex-col gap-1.5">
+      <div className="mt-2.5 flex flex-col gap-1">
         <div className="flex items-center justify-between gap-1.5">
           {stageBadge()}
           {stage === 'uploading' && (
-            <span className="text-[11px] font-semibold text-sky-600">
+            <span className="text-[11px] font-semibold text-purple-600">
               {Math.round(progress)}%
             </span>
           )}
         </div>
-        <p className="text-[11px] text-slate-600 leading-normal">
+        <p className="text-[11px] text-gray-500 leading-normal line-clamp-2">
           {descriptionText}
         </p>
       </div>

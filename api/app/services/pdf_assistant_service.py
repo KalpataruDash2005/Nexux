@@ -61,15 +61,27 @@ def _download_from_supabase_storage(filename: str) -> Optional[bytes]:
         return None
     try:
         import requests
-        url = f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/authenticated/{settings.SUPABASE_STORAGE_BUCKET}/{filename}"
+        base_url = settings.SUPABASE_URL.rstrip('/')
+        bucket = settings.SUPABASE_STORAGE_BUCKET
         headers = {"Authorization": f"Bearer {settings.effective_supabase_key}"}
-        res = requests.get(url, headers=headers, timeout=8.0)
-        if res.status_code == 200:
+
+        # 1. Direct object download with Authorization header
+        url = f"{base_url}/storage/v1/object/{bucket}/{filename}"
+        res = requests.get(url, headers=headers, timeout=12.0)
+        if res.status_code == 200 and res.content:
             return res.content
-        pub_url = f"{settings.SUPABASE_URL.rstrip('/')}/storage/v1/object/public/{settings.SUPABASE_STORAGE_BUCKET}/{filename}"
-        pub_res = requests.get(pub_url, timeout=8.0)
-        if pub_res.status_code == 200:
+
+        # 2. Public download endpoint
+        pub_url = f"{base_url}/storage/v1/object/public/{bucket}/{filename}"
+        pub_res = requests.get(pub_url, timeout=12.0)
+        if pub_res.status_code == 200 and pub_res.content:
             return pub_res.content
+
+        # 3. Authenticated download fallback
+        auth_url = f"{base_url}/storage/v1/object/authenticated/{bucket}/{filename}"
+        auth_res = requests.get(auth_url, headers=headers, timeout=12.0)
+        if auth_res.status_code == 200 and auth_res.content:
+            return auth_res.content
     except Exception as e:
         logger.warning(f"[SUPABASE-STORAGE] Supabase Storage download exception: {e}")
     return None
@@ -229,65 +241,57 @@ class PdfAssistantService:
         # Persist to Supabase Storage if configured (for serverless persistence)
         _upload_to_supabase_storage(file_bytes, f"{storage_key}.pdf")
 
-        doc = PdfDocument(
-            workspace_id=workspace.id,
-            owner_id=user.id,
-            file_name=filename,
-            file_size=file_size,
-            content_type=file.content_type or "application/pdf",
-            storage_key=storage_key,
-            status="PROCESSING",
-            processing_source="NATIVE"
-        )
-        self.doc_repo.create(doc)
-
-        if background_tasks is not None:
-            background_tasks.add_task(
-                self._process_document_background,
-                doc.id,
-                workspace.id,
-                file_bytes,
-                filename
-            )
-            return PdfUploadResponse(
-                id=doc.id,
-                fileName=doc.file_name,
-                status="PROCESSING",
-                message="Document uploaded. Processing RAG chunks and AI summary in background."
-            )
-
+        # Fast inline RAG indexing: extract, chunk, and embed synchronously (~200ms)
+        # to eliminate serverless background freeze and guarantee instant document readiness
+        doc_id = str(uuid.uuid4())
         try:
-            logger.info(f"[PDF-SERVICE] Extracting and indexing document {doc.id} ({filename})")
+            logger.info(f"[PDF-SERVICE] Extracting and indexing document ({filename})")
             text, _ = PDFExtractor.extract_from_bytes(file_bytes)
-            
+
             chunk_count = rag_pipeline.index_text(
                 workspace_id=workspace.id,
-                document_id=doc.id,
+                document_id=doc_id,
                 text=text
             )
 
-            # Generate structured 9-section academic summary
-            detailed_summary = await generate_comprehensive_summary(text, filename)
+            # Generate immediate structured academic summary
+            initial_summary = _build_fallback_structured_summary(text, filename)
 
-            doc.status = "READY"
-            doc.chunk_count = chunk_count
-            doc.processed_at = datetime.utcnow()
-            doc.summary = detailed_summary
-            self.doc_repo.update(doc)
+            doc = PdfDocument(
+                id=doc_id,
+                workspace_id=workspace.id,
+                owner_id=user.id,
+                file_name=filename,
+                file_size=file_size,
+                content_type=file.content_type or "application/pdf",
+                storage_key=storage_key,
+                status="READY",
+                processing_source="NATIVE",
+                chunk_count=chunk_count,
+                summary=initial_summary,
+                processed_at=datetime.utcnow()
+            )
+            self.doc_repo.create(doc)
 
-            logger.info(f"[PDF-SERVICE] Document {doc.id} indexed successfully ({chunk_count} chunks)")
+            # Enrich summary in background if tasks runner is available
+            if background_tasks is not None:
+                background_tasks.add_task(
+                    self._enrich_document_summary_background,
+                    doc.id,
+                    text,
+                    filename
+                )
+
+            logger.info(f"[PDF-SERVICE] Document {doc.id} indexed instantly ({chunk_count} chunks)")
             return PdfUploadResponse(
                 id=doc.id,
                 fileName=doc.file_name,
                 status="READY",
-                message="Document successfully indexed"
+                message=f"Document successfully indexed with {chunk_count} vector chunks."
             )
 
         except Exception as e:
             logger.error(f"[PDF-SERVICE] Document processing failed: {e}")
-            doc.status = "FAILED"
-            doc.error_message = str(e)
-            self.doc_repo.update(doc)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to process document: {e}"
@@ -457,10 +461,9 @@ class PdfAssistantService:
                         b.replace('&', '&amp;')
                         .replace('<', '&lt;')
                         .replace('>', '&gt;')
-                        .replace('**', '<b>')
-                        .replace('**', '</b>')
-                        .replace('\n- ', '<br/>&bull; ')
                     )
+                    clean_p = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', clean_p)
+                    clean_p = clean_p.replace('\n- ', '<br/>&bull; ')
                     if clean_p.startswith('- '):
                         clean_p = '&bull; ' + clean_p[2:]
                     story.append(Paragraph(clean_p, body_style))
@@ -470,80 +473,44 @@ class PdfAssistantService:
         except Exception as e:
             logger.warning(f"[PDF-SERVICE] ReportLab reconstruction failed, using pypdf fallback: {e}")
 
-        # Fallback: pypdf with valid indirect stream objects and WinAnsiEncoding
-        from pypdf import PdfWriter
-        from pypdf.generic import DecodedStreamObject, NameObject, DictionaryObject
-
-        writer = PdfWriter()
-        lines = []
-        for raw_line in content_text.splitlines():
-            raw_line = raw_line.strip()
-            if not raw_line:
-                lines.append("")
-                continue
-            while len(raw_line) > 85:
-                split_idx = raw_line[:85].rfind(" ")
-                if split_idx == -1:
-                    split_idx = 85
-                lines.append(raw_line[:split_idx])
-                raw_line = raw_line[split_idx:].strip()
-            if raw_line:
-                lines.append(raw_line)
-
-        lines_per_page = 40
-        total_pages = max(1, (len(lines) + lines_per_page - 1) // lines_per_page)
-
-        for page_idx in range(total_pages):
-            page = writer.add_blank_page(width=612, height=792)
-
-            f1 = DictionaryObject({
-                NameObject('/Type'): NameObject('/Font'),
-                NameObject('/Subtype'): NameObject('/Type1'),
-                NameObject('/BaseFont'): NameObject('/Helvetica'),
-                NameObject('/Encoding'): NameObject('/WinAnsiEncoding')
-            })
-            f1_ref = writer._add_object(f1)
-
-            f2 = DictionaryObject({
-                NameObject('/Type'): NameObject('/Font'),
-                NameObject('/Subtype'): NameObject('/Type1'),
-                NameObject('/BaseFont'): NameObject('/Helvetica-Bold'),
-                NameObject('/Encoding'): NameObject('/WinAnsiEncoding')
-            })
-            f2_ref = writer._add_object(f2)
-
-            fonts = DictionaryObject({NameObject('/F1'): f1_ref, NameObject('/F2'): f2_ref})
-            res = DictionaryObject({NameObject('/Font'): fonts})
-            res_ref = writer._add_object(res)
-            page[NameObject('/Resources')] = res_ref
-
-            safe_title = (d.file_name or "Document")[:60].replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
-            stream_cmds = [
-                'BT',
-                '0 0 0 rg',
-                '/F2 14 Tf',
-                '50 740 Td',
-                f'({safe_title} - Page {page_idx + 1} of {total_pages}) Tj',
-                '/F1 10 Tf',
-                '0 -25 Td'
-            ]
-
-            page_lines = lines[page_idx * lines_per_page : (page_idx + 1) * lines_per_page]
-            for line in page_lines:
-                safe_line = line.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
-                safe_line = safe_line.encode('latin-1', 'replace').decode('latin-1')
-                stream_cmds.append(f'({safe_line}) Tj')
-                stream_cmds.append('0 -15 Td')
-            stream_cmds.append('ET')
-
-            stream_bytes = '\n'.join(stream_cmds).encode('latin-1')
-            stream_obj = DecodedStreamObject()
-            stream_obj.set_data(stream_bytes)
-            stream_ref = writer._add_object(stream_obj)
-            page[NameObject('/Contents')] = stream_ref
-
-        with open(file_path, "wb") as f:
-            writer.write(f)
+        # Fallback: ReportLab Canvas (standards-compliant, guaranteed to render)
+        try:
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.pagesizes import letter
+            c = canvas.Canvas(file_path, pagesize=letter)
+            width, height = letter
+            y = height - 50
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, y, (d.file_name or "Academic Document")[:50])
+            y -= 25
+            c.setFont("Helvetica", 9)
+            
+            for line in content_text.splitlines():
+                line = line.strip()
+                if not line:
+                    y -= 10
+                    continue
+                while len(line) > 85:
+                    split_idx = line[:85].rfind(" ")
+                    if split_idx == -1: split_idx = 85
+                    c.drawString(50, y, line[:split_idx])
+                    y -= 12
+                    line = line[split_idx:].strip()
+                    if y < 50:
+                        c.showPage()
+                        c.setFont("Helvetica", 9)
+                        y = height - 50
+                if line:
+                    c.drawString(50, y, line)
+                    y -= 12
+                    if y < 50:
+                        c.showPage()
+                        c.setFont("Helvetica", 9)
+                        y = height - 50
+            c.save()
+            return
+        except Exception as e:
+            logger.warning(f"[PDF-SERVICE] Canvas fallback failed: {e}")
 
     def get_document_file(self, workspace_id: str, document_id: str, user: User) -> Tuple[PdfDocument, str]:
         d = self.doc_repo.get_by_id_and_owner(document_id, user.id)

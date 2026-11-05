@@ -10,6 +10,7 @@ class QdrantService:
         self.collection_name = settings.QDRANT_COLLECTION
         self.dimension = settings.EMBEDDING_DIMENSION
         self.client = self._init_client()
+        self._collection_ensured = False
         self._in_memory_store: List[Dict[str, Any]] = []  # Fallback for offline/test environments
 
     def _init_client(self) -> Optional[QdrantClient]:
@@ -39,7 +40,7 @@ class QdrantService:
             return QdrantClient(location=":memory:")
 
     def ensure_collection(self):
-        if not self.client:
+        if not self.client or self._collection_ensured:
             return
         try:
             collections = self.client.get_collections().collections
@@ -65,6 +66,7 @@ class QdrantService:
                     field_schema=models.PayloadSchemaType.KEYWORD
                 )
                 logger.info(f"Qdrant collection {self.collection_name} verified and indexed.")
+            self._collection_ensured = True
         except Exception as e:
             logger.warning(f"Failed to ensure Qdrant collection on server: {e}")
 
