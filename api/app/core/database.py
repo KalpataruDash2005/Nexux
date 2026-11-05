@@ -17,7 +17,9 @@ except Exception:
 def get_engine():
     db_url = settings.effective_database_url
     if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
     elif db_url.startswith("mysql://"):
         db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
         
