@@ -7,6 +7,9 @@ nexux-node-python/
 *.pyc
 __pycache__/
 node_modules/
+frontend/node_modules/
 dist/
+frontend/dist/
 build/
 *.log
+scripts/
