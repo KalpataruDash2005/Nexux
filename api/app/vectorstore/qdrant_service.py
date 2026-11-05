@@ -17,7 +17,7 @@ class QdrantService:
         try:
             if settings.QDRANT_URL:
                 logger.info(f"Connecting to Qdrant at URL: {settings.QDRANT_URL}")
-                return QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY, timeout=10.0)
+                return QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY, timeout=10.0, check_compatibility=False)
             elif settings.QDRANT_HOST:
                 # Attempt to connect to local/network Qdrant instance (e.g. Docker container on localhost:6333)
                 client = QdrantClient(

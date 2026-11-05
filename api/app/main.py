@@ -72,7 +72,7 @@ origins = settings.cors_origins_list
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins if origins != ["*"] else ["*"],
-    allow_origin_regex=r"https?://.*" if origins == ["*"] else None,
+    allow_origin_regex=r"https?://.*" if origins == ["*"] else r"https?://(.*\.)?(nexoraos\.space|nexora\.space|vercel\.app|localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
