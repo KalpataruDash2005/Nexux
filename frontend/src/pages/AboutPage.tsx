@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import './LandingPage.css';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,17 +9,27 @@ interface AboutPageProps {
 
 const AboutPage: React.FC<AboutPageProps> = ({ initialTab = 'about' }) => {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || initialTab;
   const [campusSubmitted, setCampusSubmitted] = useState(false);
-  const [careerSubmitted, setCareerSubmitted] = useState(false);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
     // Sanitize any leftover hash from history
     if (window.location.hash) {
       window.history.replaceState(null, '', window.location.pathname);
     }
+    if (initialTab === 'careers') {
+      const el = document.getElementById('careers');
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      }
+    } else if (initialTab === 'campuses') {
+      const el = document.getElementById('campuses');
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      }
+    } else {
+      window.scrollTo(0, 0);
+    }
+
     const els = document.querySelectorAll('.reveal, .reveal-stagger');
     const io = new IntersectionObserver(
       (entries) => {
@@ -34,7 +44,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ initialTab = 'about' }) => {
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, []);
+  }, [initialTab]);
 
   const dashboardTarget = user ? '/dashboard' : '/auth';
 
