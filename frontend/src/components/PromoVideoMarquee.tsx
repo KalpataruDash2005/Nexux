@@ -1,9 +1,9 @@
 import React from 'react';
 
-// Videos are served from /public/videos. Add your .mp4 filenames here when added.
+// Videos are served from /public/videos
 const PROMO_VIDEOS: string[] = [
   '/videos/Create_a_premium_cinematic_pro.mp4',
-  '/videos/Create_a_premium_cinematic_pro%20(1).mp4',
+  '/videos/Create_a_premium_cinematic_pro_1.mp4',
   '/videos/hero-bg.mp4',
 ];
 
@@ -26,13 +26,20 @@ const PromoVideoMarquee: React.FC = () => {
               <div className="promo-card" key={`${src}-${i}`}>
                 <video
                   src={src}
+                  poster="/videos/hero-poster.jpg"
                   autoPlay
                   muted
                   loop
                   playsInline
-                  preload="metadata"
-                  ref={(el) => { if (el) el.muted = true; }}
+                  preload="auto"
+                  ref={(el) => {
+                    if (el) {
+                      el.muted = true;
+                      el.play().catch(() => {});
+                    }
+                  }}
                 >
+                  <source src={src} type="video/mp4" />
                   Your browser does not support embedded videos.
                 </video>
               </div>

@@ -271,7 +271,22 @@ const LandingPage: React.FC = () => {
                                 <span className="dot r"></span><span className="dot y"></span><span className="dot g"></span>
                                 <span className="dashboard-url">nexora.ai</span>
                             </div>
-                            <img src="/demo-dashboard.jpg" alt="Nexora Demo Dashboard" className="w-full h-auto block" />
+                            <picture>
+                                <source srcSet="/demo-dashboard.webp" type="image/webp" />
+                                <source srcSet="/demo-dashboard.png" type="image/png" />
+                                <img
+                                    src="/demo-dashboard.jpg"
+                                    alt="Nexora Demo Dashboard"
+                                    className="w-full h-auto block"
+                                    loading="eager"
+                                    onError={(e) => {
+                                        const target = e.currentTarget;
+                                        if (!target.src.endsWith('/demo-dashboard.png')) {
+                                            target.src = '/demo-dashboard.png';
+                                        }
+                                    }}
+                                />
+                            </picture>
                         </div>
                         <div className="dashboard-caption">
                             Your command center  tasks, academics, placement readiness and interviews all reporting back to a single intelligent core.
