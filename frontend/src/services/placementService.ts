@@ -278,15 +278,52 @@ export interface CodingTestResult {
   actualOutput: string;
   error: string | null;
   hidden: boolean;
+  executionTimeMs?: number;
+  status?: string;
+}
+
+export interface RunCodingBody {
+  language: string;
+  code: string;
+  customInput?: string;
+}
+
+export interface CodingRunResponse {
+  status: string;
+  passed: boolean;
+  totalTests: number;
+  passedTests: number;
+  testResults: CodingTestResult[];
+  customResult?: CodingTestResult | null;
+  compilationError?: string | null;
+  runtimeError?: string | null;
+  executionTimeMs?: number | null;
+}
+
+export interface SubmissionHistoryItem {
+  id: string;
+  language: string;
+  status: string;
+  score: number;
+  passedTests: number;
+  totalTests: number;
+  executionTimeMs?: number | null;
+  submittedAt: string;
 }
 
 export interface CodingSubmitResponse {
+  submissionId?: string;
+  status?: string;
   evaluation: CodingEvaluation;
   passed: boolean;
   totalScore: number;
   testResults?: CodingTestResult[];
   passedTests?: number;
   totalTests?: number;
+  executionTimeMs?: number | null;
+  compilationError?: string | null;
+  runtimeError?: string | null;
+  standardResponse?: any;
 }
 
 export interface SubmitCodingBody {
@@ -552,12 +589,30 @@ export async function createCodingSession(body: CreateCodingBody): Promise<Codin
   }
 }
 
+export async function runCoding(id: string, body: RunCodingBody): Promise<CodingRunResponse> {
+  try {
+    const res = await apiClient.post<CodingRunResponse>(`${base}/coding/${id}/run`, body);
+    return res.data;
+  } catch (err) {
+    throw new Error(errorMessage(err, 'Could not run your code.'));
+  }
+}
+
 export async function submitCoding(id: string, body: SubmitCodingBody): Promise<CodingSubmitResponse> {
   try {
     const res = await apiClient.post<CodingSubmitResponse>(`${base}/coding/${id}/submit`, body);
     return res.data;
   } catch (err) {
     throw new Error(errorMessage(err, 'Could not submit your solution.'));
+  }
+}
+
+export async function getCodingSubmissions(id: string): Promise<SubmissionHistoryItem[]> {
+  try {
+    const res = await apiClient.get<SubmissionHistoryItem[]>(`${base}/coding/${id}/submissions`);
+    return res.data;
+  } catch (err) {
+    throw new Error(errorMessage(err, 'Could not fetch submission history.'));
   }
 }
 

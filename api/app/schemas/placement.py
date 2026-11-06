@@ -334,14 +334,47 @@ class CodingTestResult(BaseModel):
     actualOutput: str
     error: Optional[str] = None
     hidden: bool = False
+    executionTimeMs: Optional[float] = None
+    status: Optional[str] = None
+
+class RunCodingBody(BaseModel):
+    language: str = "python"
+    code: str
+    customInput: Optional[str] = None
+
+class CodingRunResponse(BaseModel):
+    status: str = "Accepted"
+    passed: bool = False
+    totalTests: int = 0
+    passedTests: int = 0
+    testResults: List[CodingTestResult] = []
+    customResult: Optional[CodingTestResult] = None
+    compilationError: Optional[str] = None
+    runtimeError: Optional[str] = None
+    executionTimeMs: Optional[float] = None
+
+class SubmissionHistoryItem(BaseModel):
+    id: str
+    language: str
+    status: str
+    score: int
+    passedTests: int
+    totalTests: int
+    executionTimeMs: Optional[float] = None
+    submittedAt: str
 
 class CodingSubmitResponse(BaseModel):
+    submissionId: Optional[str] = None
+    status: str = "Accepted"
     evaluation: CodingEvaluation
     passed: bool
     totalScore: int
     testResults: List[CodingTestResult] = []
     passedTests: int = 0
     totalTests: int = 0
+    executionTimeMs: Optional[float] = None
+    compilationError: Optional[str] = None
+    runtimeError: Optional[str] = None
     standardResponse: Optional[Dict[str, Any]] = None
 
 class SubmitCodingBody(BaseModel):

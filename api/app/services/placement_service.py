@@ -40,6 +40,9 @@ from app.schemas.placement import (
     CodingTestResult,
     CodingSubmitResponse,
     SubmitCodingBody,
+    RunCodingBody,
+    CodingRunResponse,
+    SubmissionHistoryItem,
     AptitudeTestResponse,
     AptitudeTest,
     AptitudeQuestion,
@@ -883,8 +886,15 @@ class PlacementService:
             '  "constraints": string,\n'
             '  "difficulty": string,\n'
             '  "topics": [string],\n'
-            '  "testCases": [{ "input": string, "expectedOutput": string, "hidden": boolean }]\n'
-            "}"
+            '  "testCases": [\n'
+            '    { "input": string, "expectedOutput": string, "hidden": false },\n'
+            '    { "input": string, "expectedOutput": string, "hidden": false },\n'
+            '    { "input": string, "expectedOutput": string, "hidden": true },\n'
+            '    { "input": string, "expectedOutput": string, "hidden": true },\n'
+            '    { "input": string, "expectedOutput": string, "hidden": true }\n'
+            '  ]\n'
+            "}\n"
+            "CRITICAL: Always generate exactly 2 visible sample test cases (hidden: false) and at least 3 rigorous hidden test cases (hidden: true) testing boundaries, large inputs, or edge cases."
         )
         user_prompt = f"Role: {body.role}, Topic: {body.topic}, Difficulty: {body.difficulty}"
 
@@ -900,12 +910,25 @@ class PlacementService:
             problem = CodingProblem(
                 title="Longest Substring Without Repeating Characters",
                 statement="Given a string s, find the length of the longest substring without repeating characters.",
-                examples=[{"input": 's = "abcabcbb"', "output": "3"}],
+                examples=[
+                    {"input": 's = "abcabcbb"', "output": "3"},
+                    {"input": 's = "bbbbb"', "output": "1"}
+                ],
                 constraints="0 <= s.length <= 5 * 10^4",
                 difficulty="MEDIUM",
                 topics=["Hash Table", "Two Pointers", "Sliding Window"],
-                testCases=[{"input": '"abcabcbb"', "expectedOutput": "3", "hidden": False}]
+                testCases=[
+                    {"input": '"abcabcbb"', "expectedOutput": "3", "hidden": False},
+                    {"input": '"bbbbb"', "expectedOutput": "1", "hidden": False},
+                    {"input": '"pwwkew"', "expectedOutput": "3", "hidden": True},
+                    {"input": '""', "expectedOutput": "0", "hidden": True},
+                    {"input": '"au"', "expectedOutput": "2", "hidden": True}
+                ]
             )
+
+        # Store complete problem (with hidden cases) in session payload
+        payload_data = problem.model_dump()
+        payload_data["submissions"] = []
 
         session = PlacementSession(
             owner_id=user.id,
@@ -914,10 +937,50 @@ class PlacementService:
             difficulty=body.difficulty,
             role=body.role,
             status="ACTIVE",
-            payload_json=json.dumps(problem.model_dump())
+            payload_json=json.dumps(payload_data)
         )
         saved = self.repo.create_session(session)
-        return CodingSessionResponse(sessionId=saved.id, problem=problem)
+
+        # SECURITY: Strip all hidden test cases from the client response
+        safe_test_cases = [tc for tc in problem.testCases if not tc.hidden]
+        safe_problem = problem.model_copy(update={"testCases": safe_test_cases})
+
+        return CodingSessionResponse(sessionId=saved.id, problem=safe_problem)
+
+    async def run_coding(self, session_id: str, user: User, body: RunCodingBody) -> CodingRunResponse:
+        s = self.repo.get_session_by_id(session_id, user.id)
+        if not s:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+        code_str = (body.code or "").strip()
+        if not code_str:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Code submission cannot be empty.")
+
+        problem_dict = {}
+        if s.payload_json:
+            try:
+                problem_dict = json.loads(s.payload_json)
+            except Exception:
+                problem_dict = {}
+
+        raw_test_cases = problem_dict.get("testCases") or []
+        if not raw_test_cases:
+            raw_examples = problem_dict.get("examples") or []
+            raw_test_cases = [
+                {"input": ex.get("input", ""), "expectedOutput": ex.get("output", ""), "hidden": False}
+                for ex in raw_examples
+            ]
+        if not raw_test_cases:
+            raw_test_cases = [{"input": "sample_input", "expectedOutput": "sample_output", "hidden": False}]
+
+        # Execute only visible test cases + optional custom input
+        return await CodeExecutionService.run_code(
+            problem_dict=problem_dict,
+            raw_test_cases=raw_test_cases,
+            language=body.language,
+            code_str=code_str,
+            custom_input=body.customInput
+        )
 
     async def submit_coding(self, session_id: str, user: User, body: SubmitCodingBody) -> CodingSubmitResponse:
         s = self.repo.get_session_by_id(session_id, user.id)
@@ -933,7 +996,7 @@ class PlacementService:
             )
 
         # 2. Validate allowed languages
-        allowed_languages = {"python", "java", "c++", "cpp", "javascript"}
+        allowed_languages = {"python", "java", "c++", "cpp", "javascript", "js"}
         lang_normalized = body.language.strip().lower()
         if lang_normalized not in allowed_languages:
             raise HTTPException(
@@ -951,7 +1014,6 @@ class PlacementService:
 
         raw_test_cases = problem_dict.get("testCases") or []
         if not raw_test_cases:
-            # Fallback to problem examples if explicit testCases array is missing
             raw_examples = problem_dict.get("examples") or []
             raw_test_cases = [
                 {"input": ex.get("input", ""), "expectedOutput": ex.get("output", ""), "hidden": False}
@@ -960,7 +1022,7 @@ class PlacementService:
         if not raw_test_cases:
             raw_test_cases = [{"input": "sample_input", "expectedOutput": "sample_output", "hidden": False}]
 
-        # 4. Safe evaluation via CodeExecutionService
+        # 4. Safe evaluation via CodeExecutionService (evaluates ALL test cases, masks hidden)
         res = await CodeExecutionService.evaluate_submission(
             problem_dict=problem_dict,
             raw_test_cases=raw_test_cases,
@@ -968,6 +1030,24 @@ class PlacementService:
             code_str=code_str
         )
 
+        # 5. Append submission to history
+        import uuid
+        submission_id = res.submissionId or str(uuid.uuid4())[:8]
+        sub_item = {
+            "id": submission_id,
+            "language": body.language,
+            "status": res.status,
+            "score": res.totalScore,
+            "passedTests": res.passedTests,
+            "totalTests": res.totalTests,
+            "executionTimeMs": res.executionTimeMs,
+            "submittedAt": datetime.utcnow().isoformat()
+        }
+        if "submissions" not in problem_dict or not isinstance(problem_dict["submissions"], list):
+            problem_dict["submissions"] = []
+        problem_dict["submissions"].insert(0, sub_item)
+
+        s.payload_json = json.dumps(problem_dict)
         s.status = "COMPLETED"
         s.score = res.totalScore
         s.ended_at = datetime.utcnow()
@@ -976,20 +1056,33 @@ class PlacementService:
         try:
             std_resp = create_standard_response(
                 module="coding_evaluation",
-                summary=f"Solved with score {res.totalScore}/100. Passed {res.passedTests}/{res.totalTests} test cases.",
+                summary=f"Solved with score {res.totalScore}/100. Status: {res.status}. Passed {res.passedTests}/{res.totalTests} test cases.",
                 score=float(res.totalScore),
                 status="COMPLETED",
                 strengths=[f"Time Complexity: {res.evaluation.timeComplexity}", f"Space Complexity: {res.evaluation.spaceComplexity}"],
                 weaknesses=[res.evaluation.feedback] if not res.passed else [],
                 recommendations=res.evaluation.alternativeSolutions[:3],
-                evidence=[{"claim": f"Test case {i+1}", "source": "code_executor", "quote_or_detail": f"Passed: {tr.passed}"} for i, tr in enumerate(res.testResults[:3])],
-                metadata={"language": body.language, "passed": res.passed, "passedTests": res.passedTests}
+                evidence=[{"claim": f"Test case {i+1}", "source": "code_executor", "quote_or_detail": f"Status: {tr.status}, Passed: {tr.passed}"} for i, tr in enumerate(res.testResults[:3])],
+                metadata={"language": body.language, "status": res.status, "passed": res.passed, "passedTests": res.passedTests}
             )
             res.standardResponse = std_resp.model_dump()
         except Exception:
             pass
 
         return res
+
+    def get_coding_submissions(self, session_id: str, user: User) -> List[SubmissionHistoryItem]:
+        s = self.repo.get_session_by_id(session_id, user.id)
+        if not s:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+        problem_dict = {}
+        if s.payload_json:
+            try:
+                problem_dict = json.loads(s.payload_json)
+            except Exception:
+                problem_dict = {}
+        subs = problem_dict.get("submissions") or []
+        return [SubmissionHistoryItem(**item) for item in subs]
 
     async def create_aptitude_test(self, user: User, body: CreateAptitudeBody) -> AptitudeTestResponse:
         system_prompt = (

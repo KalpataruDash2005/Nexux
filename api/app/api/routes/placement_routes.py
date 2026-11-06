@@ -21,6 +21,9 @@ from app.schemas.placement import (
     CreateCodingBody,
     CodingSubmitResponse,
     SubmitCodingBody,
+    RunCodingBody,
+    CodingRunResponse,
+    SubmissionHistoryItem,
     AptitudeTestResponse,
     CreateAptitudeBody,
     SubmitAptitudeBody,
@@ -171,6 +174,16 @@ async def create_coding(
     service = PlacementService(db)
     return await service.create_coding_session(current_user, body)
 
+@router.post("/coding/{id}/run", response_model=CodingRunResponse)
+async def run_coding(
+    id: str,
+    body: RunCodingBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = PlacementService(db)
+    return await service.run_coding(id, current_user, body)
+
 @router.post("/coding/{id}/submit", response_model=CodingSubmitResponse)
 async def submit_coding(
     id: str,
@@ -180,6 +193,15 @@ async def submit_coding(
 ):
     service = PlacementService(db)
     return await service.submit_coding(id, current_user, body)
+
+@router.get("/coding/{id}/submissions", response_model=List[SubmissionHistoryItem])
+def get_coding_submissions(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = PlacementService(db)
+    return service.get_coding_submissions(id, current_user)
 
 @router.post("/aptitude", response_model=AptitudeTestResponse)
 async def create_aptitude(
