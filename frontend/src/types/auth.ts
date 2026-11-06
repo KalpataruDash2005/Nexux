@@ -17,3 +17,13 @@ export interface AuthResponseDto {
   role: string;
   name?: string;
 }
+
+export interface LogoutResponseDto {
+  message: string;
+  status: string;
+}
+
+export interface ChangePasswordRequestDto {
+  current_password?: string;
+  new_password?: string;
+}

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { logout as apiLogout } from '../services/authService';
 
 interface AuthContextType {
     token: string | null;
@@ -28,6 +29,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = () => {
+        // Asynchronously notify backend to invalidate token blocklist
+        apiLogout().catch(() => {});
         setToken(null);
         setUser(null);
         localStorage.removeItem('token');
@@ -37,7 +40,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         // Protect routes that are not public
-        const publicRoutes = ['/', '/auth', '/auth/', '/oauth2/callback', '/onboarding', '/pricing', '/pricing/'];
+        const publicRoutes = [
+            '/',
+            '/auth',
+            '/auth/',
+            '/oauth2/callback',
+            '/onboarding',
+            '/pricing',
+            '/pricing/',
+            '/about',
+            '/about/',
+            '/careers',
+            '/careers/',
+            '/campuses',
+            '/campuses/'
+        ];
         if (!token && !publicRoutes.includes(location.pathname)) {
             navigate('/auth');
         }

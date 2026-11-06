@@ -216,6 +216,39 @@ const LandingPage: React.FC = () => {
         };
     }, []);
 
+    const handleScrollTo = (e: React.MouseEvent, sectionId: string) => {
+        e.preventDefault();
+        setMobileOpen(false);
+        const el = document.getElementById(sectionId);
+        if (el) {
+            const navOffset = 80;
+            const top = el.getBoundingClientRect().top + window.pageYOffset - navOffset;
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        }
+        if (window.location.hash) {
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+    };
+
+    useEffect(() => {
+        if (window.location.hash) {
+            const raw = window.location.hash.replace('#', '');
+            if (raw === 'about') {
+                window.history.replaceState(null, '', '/about');
+                return;
+            }
+            const el = document.getElementById(raw);
+            if (el) {
+                setTimeout(() => {
+                    const navOffset = 80;
+                    const top = el.getBoundingClientRect().top + window.pageYOffset - navOffset;
+                    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                }, 150);
+            }
+            window.history.replaceState(null, '', window.location.pathname);
+        }
+    }, []);
+
     return (
         <div className="landing-wrapper">
             <canvas id="starfield"></canvas>
@@ -230,16 +263,17 @@ const LandingPage: React.FC = () => {
                     <button className="nav-toggle" aria-label="Toggle menu" aria-expanded={mobileOpen} onClick={() => setMobileOpen((o) => !o)}>
                         <span></span><span></span><span></span>
                     </button>
-                    <div className="nav-links" onClick={() => setMobileOpen(false)}>
-                    <a href="#features">Product</a>
-                    <a href="#agents">Agents</a>
-                    <Link to={dashboardTarget}>Dashboard</Link>
-                    <Link to="/pricing">Pricing</Link>
-                    <a href="#faq">FAQ</a>
+                    <div className="nav-links">
+                        <button type="button" onClick={(e) => handleScrollTo(e, 'features')} className="nav-link-btn">Product</button>
+                        <button type="button" onClick={(e) => handleScrollTo(e, 'agents')} className="nav-link-btn">Agents</button>
+                        <Link to={dashboardTarget} onClick={() => setMobileOpen(false)}>Dashboard</Link>
+                        <Link to="/pricing" onClick={() => setMobileOpen(false)}>Pricing</Link>
+                        <Link to="/about" onClick={() => setMobileOpen(false)}>About</Link>
+                        <button type="button" onClick={(e) => handleScrollTo(e, 'faq')} className="nav-link-btn">FAQ</button>
                     </div>
                     <div className="nav-cta-group" onClick={() => setMobileOpen(false)}>
-                    <Link to="/auth" className="nav-signin">Sign in</Link>
-                    <Link to="/auth?mode=signup" className="btn btn-primary btn-sm">Launch Nexora</Link>
+                        <Link to="/auth" className="nav-signin">Sign in</Link>
+                        <Link to="/auth?mode=signup" className="btn btn-primary btn-sm">Launch Nexora</Link>
                     </div>
                 </div>
                 </nav>
@@ -253,10 +287,10 @@ const LandingPage: React.FC = () => {
                 <div className="wrap">
                     <span className="eyebrow hero-badge"><i className="pulse-dot"></i> AI Operating System · For Students</span>
                     <h1>Your AI Operating System for<br/><span className="grad-word">Academic &amp; Placement Success</span></h1>
-                    <p className="sub">Nexora turns your college life into a single operating system  AI-planned tasks, organized academic workspaces, an ATS-tuned resume, live mock interviews and a mentor that remembers your context.</p>
+                    <p className="sub">Nexora turns your college life into a single operating system — AI-planned tasks, organized academic workspaces, an ATS-tuned resume, live mock interviews and a mentor that remembers your context.</p>
                     <div className="hero-ctas">
                     <Link to="/auth?mode=signup" className="btn btn-primary">Enter Nexora &rarr;</Link>
-                    <a href="#agents" className="btn btn-ghost">See how it works</a>
+                    <button type="button" onClick={(e) => handleScrollTo(e, 'agents')} className="btn btn-ghost">See how it works</button>
                     </div>
 
                     <div className="hero-intro reveal">
@@ -289,28 +323,28 @@ const LandingPage: React.FC = () => {
                             </picture>
                         </div>
                         <div className="dashboard-caption">
-                            Your command center  tasks, academics, placement readiness and interviews all reporting back to a single intelligent core.
+                            Your command center — tasks, academics, placement readiness and interviews all reporting back to a single intelligent core.
                         </div>
                     </div>
                     
                     <div className="stat-strip">
-                    <div className="stat"><b>340</b><span>Campuses live</span></div>
-                    <div className="divider"></div>
-                    <div className="stat"><b>91%</b><span>Readiness lift</span></div>
-                    <div className="divider"></div>
-                    <div className="stat"><b>24/7</b><span>Agent uptime</span></div>
+                        <div className="stat"><b>340</b><span>Campuses live</span></div>
+                        <div className="divider"></div>
+                        <div className="stat"><b>91%</b><span>Readiness lift</span></div>
+                        <div className="divider"></div>
+                        <div className="stat"><b>24/7</b><span>Agent uptime</span></div>
                     </div>
-
-                    <PromoVideoMarquee />
                 </div>
                 </section>
+
+                <PromoVideoMarquee />
 
                 <section id="features">
                 <div className="wrap">
                     <div className="section-head reveal">
                     <span className="eyebrow" style={{justifyContent:'center'}}>System Modules</span>
                     <h2>Six systems. One operating layer.</h2>
-                    <p>Every module works as one unit  your tasks, academics, resume and interviews all report back to a single intelligent core.</p>
+                    <p>Every module works as one unit — your tasks, academics, resume and interviews all report back to a single intelligent core.</p>
                     </div>
                     <div className="feature-grid reveal-stagger">
                     <div className="glass-card tilt-target">
@@ -352,7 +386,7 @@ const LandingPage: React.FC = () => {
                     <div className="section-head reveal">
                     <span className="eyebrow" style={{justifyContent:'center'}}>The Agent Layer</span>
                     <h2>Five agents, always awake</h2>
-                    <p>Each agent owns one part of your outcome and hands off context to the others  no dashboard-checking required.</p>
+                    <p>Each agent owns one part of your outcome and hands off context to the others — no dashboard-checking required.</p>
                     <div className="agent-core" id="ai-core">
                         <div className="core-glow"></div>
                         <div className="core-ring r1"></div>
@@ -466,7 +500,7 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div className="faq-item">
                         <button className="faq-q">Is my academic data private?<span className="plus"></span></button>
-                        <div className="faq-a"><p>Yes. Your academic and placement data stays scoped to your account and your campus's console  it's never used to train models outside your instance.</p></div>
+                        <div className="faq-a"><p>Yes. Your academic and placement data stays scoped to your account and your campus's console — it's never used to train models outside your instance.</p></div>
                     </div>
                     </div>
                 </div>
@@ -477,19 +511,35 @@ const LandingPage: React.FC = () => {
                     <div className="footer-top">
                     <div className="footer-brand">
                         <Link to="/" className="logo" aria-label="Nexora home"><span className="logo-mark flex items-center justify-center"><span className="absolute inset-0 border-t-[1.5px] border-l-[1.5px] border-sky-400 rounded-tl-sm w-3/4 h-3/4 left-0 top-0"></span><span className="absolute inset-0 border-b-[1.5px] border-r-[1.5px] border-indigo-500 rounded-br-sm w-3/4 h-3/4 right-0 bottom-0"></span><span className="font-black text-[8px] text-transparent bg-clip-text bg-gradient-to-br from-sky-400 to-indigo-500 leading-none mt-[1px]">N</span></span>Nexora</Link>
-                        <p>The AI operating system running quietly beneath academic and placement life  tasks, workspaces, resume and interviews in one place, for students who'd rather build than chase.</p>
+                        <p>The AI operating system running quietly beneath academic and placement life — tasks, workspaces, resume and interviews in one place, for students who'd rather build than chase.</p>
+                        <div className="footer-badge mt-4">
+                            <span className="dot-pulse"></span>
+                            <span>All Systems Operational</span>
+                        </div>
                     </div>
                     <div className="footer-col">
                         <h4>Product</h4>
-                        <a href="#features">Modules</a><a href="#agents">Agents</a><Link to="/pricing">Pricing</Link>
+                        <button type="button" onClick={(e) => handleScrollTo(e, 'features')}>System Modules</button>
+                        <button type="button" onClick={(e) => handleScrollTo(e, 'agents')}>Nora AI Agents</button>
+                        <Link to={dashboardTarget}>Student Dashboard</Link>
+                        <Link to="/pricing">Pricing (100% Free)</Link>
                     </div>
                     <div className="footer-col">
                         <h4>Company</h4>
-                        <a href="#">About</a><a href="#">Careers</a><a href="#">Campuses</a>
+                        <Link to="/about">About Nexora</Link>
+                        <Link to="/careers">Careers &amp; Interns</Link>
+                        <Link to="/campuses">University Campuses</Link>
+                    </div>
+                    <div className="footer-col">
+                        <h4>Resources</h4>
+                        <button type="button" onClick={(e) => handleScrollTo(e, 'faq')}>Platform FAQ</button>
+                        <button type="button" onClick={(e) => handleScrollTo(e, 'feedback')}>Product Feedback</button>
+                        <Link to="/auth">Sign In</Link>
+                        <Link to="/auth?mode=signup">Get Started</Link>
                     </div>
                     </div>
                     <div className="footer-bottom">
-                    <span> 2026 Nexora. All systems operational.</span>
+                    <span>© {new Date().getFullYear()} Nexora Technologies Inc. All systems operational.</span>
                     <span>Built for students who ship.</span>
                     </div>
                 </div>
