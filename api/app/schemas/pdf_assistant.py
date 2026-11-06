@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
 class PdfUploadResponse(BaseModel):
@@ -21,6 +21,7 @@ class PdfDocumentResponse(BaseModel):
     errorMessage: Optional[str] = None
     processedAt: Optional[datetime] = None
     createdAt: Optional[datetime] = None
+    standardResponse: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -41,6 +42,7 @@ class PdfChatResponse(BaseModel):
     answer: str
     sources: List[str] = []
     history: List[PdfChatMessageResponse] = []
+    standardResponse: Optional[Dict[str, Any]] = None
 
 class PdfDiagnosticResponse(BaseModel):
     documentId: str

@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import { StandardAiResponse } from '../types/ai';
 
 export type PlacementView =
   | 'dashboard'
@@ -58,6 +59,22 @@ export interface ExperienceEntry {
   highlights: string[];
 }
 
+export interface SkillEvaluation {
+  skill: string;
+  evidenceLevel: 'Demonstrated' | 'Partially demonstrated' | 'Not demonstrated' | 'Insufficient info' | string;
+  benchmark: 'Essential' | 'Expected' | 'Role-dependent' | 'Advanced' | string;
+  evidenceDetail?: string;
+  assessedScore?: number | null;
+}
+
+export interface DimensionBreakdown {
+  dimension: string;
+  score?: number | null;
+  weight: number;
+  isAssessed: boolean;
+  evidenceSummary: string;
+}
+
 export interface ResumeAnalysis {
   candidateName: string;
   atsScore: number;
@@ -77,6 +94,8 @@ export interface ResumeAnalysis {
   recommendedProjects: string[];
   recommendedCertifications: string[];
   checklist: string[];
+  skillEvaluations?: SkillEvaluation[];
+  standardResponse?: StandardAiResponse | null;
 }
 
 export interface ResumeResponse {
@@ -339,12 +358,16 @@ export interface AnalyticsData {
   successRate: number;
   strongTopics: string[];
   weakTopics: string[];
+  scoreBreakdown?: Record<string, string>;
+  standardResponse?: StandardAiResponse | null;
 }
 
 export interface ReadinessComponent {
   name: string;
   score: number;
   weight: number;
+  isAssessed?: boolean;
+  evidenceSummary?: string;
 }
 
 export interface LearningPathItem {
@@ -361,6 +384,10 @@ export interface ReadinessData {
   recommendedCompanies: string[];
   recommendedRoles: string[];
   learningPath: LearningPathItem[];
+  skillEvaluations?: SkillEvaluation[];
+  missingAssessments?: string[];
+  dimensionBreakdown?: DimensionBreakdown[];
+  standardResponse?: StandardAiResponse | null;
 }
 
 export interface CompanyPreparation {
@@ -383,9 +410,19 @@ export interface RoadmapData {
 
 export function errorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === 'object' && 'response' in err) {
-    const resp = (err as { response?: { data?: { message?: unknown } } }).response;
-    const msg = resp?.data?.message;
-    if (typeof msg === 'string' && msg.trim()) return msg;
+    const resp = (err as { response?: { data?: { message?: unknown; detail?: unknown; requestId?: unknown } } }).response;
+    const msg = typeof resp?.data?.message === 'string' && resp.data.message.trim()
+      ? resp.data.message
+      : typeof resp?.data?.detail === 'string' && resp.data.detail.trim()
+        ? resp.data.detail
+        : null;
+    const reqId = typeof resp?.data?.requestId === 'string' && resp.data.requestId.trim() ? resp.data.requestId : null;
+    if (msg) {
+      if (reqId && !msg.includes('Reference ID')) {
+        return `${msg} (Reference ID: ${reqId})`;
+      }
+      return msg;
+    }
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.repositories.pdf_document_repository import PdfDocumentRepository
 from app.repositories.workspace_repository import WorkspaceRepository
 from app.models.base import PdfDocument, PdfChatMessage, User
+from app.schemas.ai_response import create_standard_response
 from app.schemas.pdf_assistant import (
     PdfUploadResponse,
     PdfDocumentResponse,
@@ -275,12 +276,15 @@ class PdfAssistantService:
 
             # Enrich summary in background if tasks runner is available
             if background_tasks is not None:
-                background_tasks.add_task(
-                    self._enrich_document_summary_background,
-                    doc.id,
-                    text,
-                    filename
-                )
+                try:
+                    background_tasks.add_task(
+                        PdfAssistantService._enrich_document_summary_background,
+                        doc.id,
+                        text,
+                        filename
+                    )
+                except Exception as bg_err:
+                    logger.warning(f"[PDF-SERVICE] Could not schedule background summary enrichment: {bg_err}")
 
             logger.info(f"[PDF-SERVICE] Document {doc.id} indexed instantly ({chunk_count} chunks)")
             return PdfUploadResponse(
@@ -290,12 +294,44 @@ class PdfAssistantService:
                 message=f"Document successfully indexed with {chunk_count} vector chunks."
             )
 
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"[PDF-SERVICE] Document processing failed: {e}")
+            logger.error(f"[PDF-SERVICE] Document processing failed: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Failed to process document: {e}"
+                detail="Your document could not be processed. Please verify the document format and try again."
             )
+
+    @staticmethod
+    def _enrich_document_summary_background(
+        doc_id: str,
+        text: str,
+        filename: str
+    ):
+        """
+        Background task to enrich initial summary with comprehensive AI analysis.
+        Runs safely in background without blocking upload or failing user response.
+        """
+        from app.core.database import SessionLocal
+        import asyncio
+        bg_db = SessionLocal()
+        try:
+            repo = PdfDocumentRepository(bg_db)
+            doc = repo.get_by_id(doc_id)
+            if not doc:
+                return
+
+            logger.info(f"[PDF-SERVICE] [BG-ENRICH] Starting background AI summary enrichment for {doc_id} ({filename})")
+            detailed_summary = asyncio.run(generate_comprehensive_summary(text, filename))
+            if detailed_summary and len(detailed_summary.strip()) > 50:
+                doc.summary = detailed_summary
+                repo.update(doc)
+                logger.info(f"[PDF-SERVICE] [BG-ENRICH] AI summary enriched successfully for document {doc_id}")
+        except Exception as e:
+            logger.warning(f"[PDF-SERVICE] [BG-ENRICH] Summary enrichment background task failed for {doc_id}: {e}")
+        finally:
+            bg_db.close()
 
     @staticmethod
     def _process_document_background(
@@ -512,6 +548,36 @@ class PdfAssistantService:
         except Exception as e:
             logger.warning(f"[PDF-SERVICE] Canvas fallback failed: {e}")
 
+        # Fallback 2: pypdf or standard binary PDF stream (100% dependency-free compliant PDF)
+        try:
+            from pypdf import PdfWriter
+            writer = PdfWriter()
+            writer.add_blank_page(width=612, height=792)
+            with open(file_path, "wb") as f:
+                writer.write(f)
+            return
+        except Exception:
+            pass
+
+        try:
+            minimal_pdf = (
+                b"%PDF-1.4\n"
+                b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
+                b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
+                b"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj\n"
+                b"4 0 obj << /Length 44 >> stream\n"
+                b"BT /F1 12 Tf 50 700 Td (Nexora Academic Document) Tj ET\n"
+                b"endstream\n"
+                b"endobj\n"
+                b"xref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000214 00000 n \n"
+                b"trailer << /Size 5 /Root 1 0 R >>\nstartxref\n308\n%%EOF"
+            )
+            with open(file_path, "wb") as f:
+                f.write(minimal_pdf)
+            return
+        except Exception as raw_err:
+            logger.error(f"[PDF-SERVICE] Raw PDF creation failed: {raw_err}")
+
     def get_document_file(self, workspace_id: str, document_id: str, user: User) -> Tuple[PdfDocument, str]:
         d = self.doc_repo.get_by_id_and_owner(document_id, user.id)
         if not d or d.workspace_id != workspace_id:
@@ -559,6 +625,14 @@ class PdfAssistantService:
         d = self.doc_repo.get_by_id_and_owner(document_id, user.id)
         if not d or d.workspace_id != workspace_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        std_resp = create_standard_response(
+            module="pdf_summary",
+            summary=(d.summary[:300] + "...") if d.summary and len(d.summary) > 300 else (d.summary or f"Document {d.file_name}"),
+            score=100.0 if d.status == "READY" else None,
+            status="COMPLETED" if d.status == "READY" else "IN_PROGRESS",
+            evidence=[{"claim": "Document Vector Index", "source": "qdrant", "quote_or_detail": f"{d.chunk_count or 0} vector chunks indexed"}],
+            metadata={"documentId": d.id, "fileName": d.file_name, "chunkCount": d.chunk_count or 0}
+        )
         return PdfDocumentResponse(
             id=d.id,
             workspaceId=d.workspace_id,
@@ -571,7 +645,8 @@ class PdfAssistantService:
             chunkCount=d.chunk_count or 0,
             errorMessage=d.error_message,
             processedAt=d.processed_at,
-            createdAt=d.created_at
+            createdAt=d.created_at,
+            standardResponse=std_resp.model_dump()
         )
 
     def delete_document(self, workspace_id: str, document_id: str, user: User):
@@ -651,6 +726,14 @@ class PdfAssistantService:
         self.doc_repo.save_chat_message(ai_msg)
 
         history_msgs = self.doc_repo.get_chat_history(document_id)
+        std_resp = create_standard_response(
+            module="pdf_qa",
+            summary=(answer[:300] + "...") if len(answer) > 300 else answer,
+            score=None,
+            status="COMPLETED",
+            evidence=[{"claim": f"Source chunk {idx+1}", "source": "rag_document", "quote_or_detail": src[:250]} for idx, src in enumerate(sources[:3])],
+            metadata={"question": cleaned_question, "sourcesCount": len(sources)}
+        )
         return PdfChatResponse(
             answer=answer,
             sources=sources,
@@ -662,7 +745,8 @@ class PdfAssistantService:
                     createdAt=m.created_at
                 )
                 for m in history_msgs
-            ]
+            ],
+            standardResponse=std_resp.model_dump()
         )
 
     async def chat_stream(

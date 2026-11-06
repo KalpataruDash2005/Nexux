@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.repositories.task_repository import TaskRepository
 from app.models.base import Task, AiConversation, User
+from app.schemas.ai_response import create_standard_response
 from app.schemas.tasks import (
     CreateTaskRequest,
     UpdateTaskRequest,
@@ -360,12 +361,22 @@ class TaskService:
         )
         self.repo.save_conversation(ai_conv)
 
+        std_resp = create_standard_response(
+            module="ai_chat",
+            summary=reply[:300] if reply else "Task assistant processed request.",
+            score=None,
+            status="COMPLETED" if action != "NEED_INFO" else "NEEDS_INFO",
+            recommendations=[f"Task '{created_task.title}' scheduled"] if created_task else [],
+            missing_information=["Task title required"] if action == "NEED_INFO" else [],
+            metadata={"action": action, "hasActiveTask": bool(active_task)}
+        )
         return AssistantResponse(
             replyMessage=reply,
             action=action,
             updatedTask=TaskDto.model_validate(active_task) if active_task else None,
             createdTask=created_task,
-            newChunks=new_chunks
+            newChunks=new_chunks,
+            standardResponse=std_resp.model_dump()
         )
 
     def get_assistant_context(

@@ -29,6 +29,20 @@ class ExperienceEntry(BaseModel):
     duration: str
     highlights: List[str] = []
 
+class SkillEvaluation(BaseModel):
+    skill: str
+    evidenceLevel: str = "Demonstrated"  # "Demonstrated", "Partially demonstrated", "Not demonstrated", "Insufficient info"
+    benchmark: str = "Expected"          # "Essential", "Expected", "Role-dependent", "Advanced"
+    evidenceDetail: str = ""
+    assessedScore: Optional[int] = None
+
+class DimensionBreakdown(BaseModel):
+    dimension: str
+    score: Optional[int] = None
+    weight: float = 0.25
+    isAssessed: bool = False
+    evidenceSummary: str = ""
+
 class ResumeAnalysis(BaseModel):
     candidateName: str = ""
     atsScore: int = 0
@@ -48,6 +62,8 @@ class ResumeAnalysis(BaseModel):
     recommendedProjects: List[str] = []
     recommendedCertifications: List[str] = []
     checklist: List[str] = []
+    skillEvaluations: List[SkillEvaluation] = []
+    standardResponse: Optional[Dict[str, Any]] = None
 
 class ResumeResponse(BaseModel):
     resumeId: Optional[str] = None
@@ -167,6 +183,7 @@ class InterviewFeedback(BaseModel):
     shouldEnd: bool = False
     isDegradedEvaluation: bool = False
     evaluationStatus: str = "SUCCESS"
+    standardResponse: Optional[Dict[str, Any]] = None
 
     @model_validator(mode='before')
     @classmethod
@@ -325,6 +342,7 @@ class CodingSubmitResponse(BaseModel):
     testResults: List[CodingTestResult] = []
     passedTests: int = 0
     totalTests: int = 0
+    standardResponse: Optional[Dict[str, Any]] = None
 
 class SubmitCodingBody(BaseModel):
     language: str = "python"
@@ -374,27 +392,31 @@ class AptitudeSubmitResponse(BaseModel):
     detailed: List[AptitudeDetail] = []
 
 class AnalyticsData(BaseModel):
-    technical: int = 70
-    hr: int = 75
-    communication: int = 80
-    coding: int = 65
-    dsa: int = 60
-    aptitude: int = 85
-    resume: int = 80
-    overallReadiness: int = 73
+    technical: int = 0
+    hr: int = 0
+    communication: int = 0
+    coding: int = 0
+    dsa: int = 0
+    aptitude: int = 0
+    resume: int = 0
+    overallReadiness: int = 0
     daily: List[Dict[str, Any]] = []
     weekly: List[Dict[str, Any]] = []
     monthly: List[Dict[str, Any]] = []
-    timeSpentMinutes: int = 120
-    accuracy: int = 78
-    successRate: int = 82
+    timeSpentMinutes: int = 0
+    accuracy: int = 0
+    successRate: int = 0
     strongTopics: List[str] = []
     weakTopics: List[str] = []
+    scoreBreakdown: Dict[str, str] = {}
+    standardResponse: Optional[Dict[str, Any]] = None
 
 class ReadinessComponent(BaseModel):
     name: str
     score: int
     weight: float
+    isAssessed: bool = True
+    evidenceSummary: str = ""
 
 class LearningPathItem(BaseModel):
     topic: str
@@ -409,6 +431,10 @@ class ReadinessData(BaseModel):
     recommendedCompanies: List[str] = []
     recommendedRoles: List[str] = []
     learningPath: List[LearningPathItem] = []
+    skillEvaluations: List[SkillEvaluation] = []
+    missingAssessments: List[str] = []
+    dimensionBreakdown: List[DimensionBreakdown] = []
+    standardResponse: Optional[Dict[str, Any]] = None
 
 class CompanyPreparation(BaseModel):
     company: str
@@ -425,6 +451,7 @@ class RoadmapData(BaseModel):
     dsaRevision: List[str] = []
     aptitudePractice: List[str] = []
     generatedAt: Optional[str] = None
+    standardResponse: Optional[Dict[str, Any]] = None
 
 class PlacementResetResponse(BaseModel):
     reset: bool

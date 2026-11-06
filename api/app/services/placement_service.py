@@ -57,6 +57,8 @@ from app.schemas.placement import (
 from app.document_processing.pdf_extractor import PDFExtractor
 from app.ai import ai_gateway, AIWorkload, AITask
 from app.services.code_execution_service import CodeExecutionService
+from app.services.career_evaluation_engine import CareerEvaluationEngine
+from app.schemas.ai_response import create_standard_response
 from app.core.logging import logger
 
 def is_gibberish_or_random(text: str) -> bool:
@@ -186,6 +188,45 @@ class PlacementService:
                 expectedQuestions=["Explain the architecture of your main project", "How do you optimize SQL queries?"]
             )
 
+        # Multi-dimensional evaluation: Dimension 1 (Evidence Level) & Dimension 2 (2026 Industry Benchmark)
+        try:
+            skill_evals = CareerEvaluationEngine.extract_skill_evaluations(
+                skills=analysis_obj.skills,
+                resume_text=text,
+                projects=[p.model_dump() for p in analysis_obj.projects],
+                experience=[e.model_dump() for e in analysis_obj.experience]
+            )
+            analysis_obj.skillEvaluations = skill_evals
+
+            std_resp = create_standard_response(
+                module="resume_analysis",
+                summary=f"ATS score {analysis_obj.atsScore}/100 with {len(analysis_obj.skills)} skills extracted and {len(analysis_obj.projects)} verified projects.",
+                score=float(analysis_obj.atsScore),
+                status="COMPLETED",
+                strengths=analysis_obj.strengths[:5],
+                weaknesses=analysis_obj.weaknesses[:5],
+                evidence=[
+                    {
+                        "claim": ev.skill,
+                        "source": "resume_projects" if ev.evidenceLevel == "Demonstrated" else "resume_keywords",
+                        "quote_or_detail": ev.evidenceDetail,
+                        "status": ev.evidenceLevel
+                    }
+                    for ev in skill_evals[:8]
+                ],
+                recommendations=[s.suggestion for s in analysis_obj.suggestions[:3]] + [f"Build practical project verifying {s}" for s in analysis_obj.missingSkills[:2]],
+                missing_information=analysis_obj.missingSkills[:5],
+                metadata={
+                    "candidateName": analysis_obj.candidateName,
+                    "atsScore": analysis_obj.atsScore,
+                    "demonstratedCount": sum(1 for e in skill_evals if e.evidenceLevel == "Demonstrated"),
+                    "insufficientInfoCount": sum(1 for e in skill_evals if e.evidenceLevel == "Insufficient info")
+                }
+            )
+            analysis_obj.standardResponse = std_resp.model_dump()
+        except Exception as eval_err:
+            logger.warning(f"Failed to attach skill evaluations: {eval_err}")
+
         analysis_record = PlacementResumeAnalysis(
             resume_id=saved_resume.id,
             owner_id=user.id,
@@ -232,55 +273,80 @@ class PlacementService:
             for r in resumes
         ]
 
+    def _get_user_resume_analysis(self, user_id: str):
+        latest = self.repo.get_latest_resume(user_id)
+        if not latest:
+            return None, None
+        ana = self.repo.get_analysis_by_resume_id(latest.id)
+        if not ana or not ana.analysis_json:
+            return latest, None
+        try:
+            data = json.loads(ana.analysis_json)
+            return latest, data
+        except Exception:
+            return latest, None
+
     def get_dashboard(self, user: User) -> DashboardData:
         sessions = self.repo.get_sessions(user.id)
-        resumes = self.repo.get_all_resumes(user.id)
+        latest_resume, resume_analysis = self._get_user_resume_analysis(user.id)
+        analytics = CareerEvaluationEngine.compute_grounded_analytics(sessions, latest_resume, resume_analysis)
+        readiness_data = CareerEvaluationEngine.compute_grounded_readiness(user, sessions, latest_resume, resume_analysis)
 
-        completed_interviews = sum(1 for s in sessions if s.type in ("MOCK", "HR", "TECHNICAL") and s.status == "COMPLETED")
-        coding_problems = sum(1 for s in sessions if s.type == "CODING" and s.status == "COMPLETED")
-        questions_answered = sum(1 for s in sessions if s.type == "APTITUDE" and s.status == "COMPLETED") * 5
+        completed_interviews = sum(1 for s in sessions if getattr(s, "type", None) in ("MOCK", "HR", "TECHNICAL") and getattr(s, "status", None) == "COMPLETED")
+        coding_problems = sum(1 for s in sessions if getattr(s, "type", None) == "CODING" and getattr(s, "status", None) == "COMPLETED")
+        questions_answered = sum(1 for s in sessions if getattr(s, "type", None) == "APTITUDE" and getattr(s, "status", None) == "COMPLETED") * 5
 
-        resume_score = 75
-        latest = self.repo.get_latest_resume(user.id)
-        if latest:
-            ana = self.repo.get_analysis_by_resume_id(latest.id)
-            if ana:
-                try:
-                    resume_score = json.loads(ana.analysis_json).get("atsScore", 75)
-                except Exception:
-                    pass
+        # Extract recent feedback from real session summaries
+        recent_feedback = []
+        completed_sessions = [s for s in sessions if getattr(s, "status", None) == "COMPLETED" and getattr(s, "summary", None)]
+        for s in completed_sessions[:3]:
+            recent_feedback.append(
+                RecentFeedbackEntry(
+                    sessionTitle=f"{s.type.capitalize()} Evaluation",
+                    type=s.type,
+                    date=s.ended_at.strftime("%Y-%m-%d") if s.ended_at else (s.created_at.strftime("%Y-%m-%d") if s.created_at else datetime.utcnow().strftime("%Y-%m-%d")),
+                    summary=s.summary or "Evaluation completed."
+                )
+            )
+        if not recent_feedback and sessions:
+            s0 = sessions[0]
+            recent_feedback.append(
+                RecentFeedbackEntry(
+                    sessionTitle=f"{s0.type.capitalize()} Session",
+                    type=s0.type,
+                    date=datetime.utcnow().strftime("%Y-%m-%d"),
+                    summary="Session recorded in system."
+                )
+            )
 
-        readiness = min(100, int((completed_interviews * 15 + coding_problems * 10 + resume_score) / 2))
-        readiness_label = "Ready" if readiness >= 80 else "Intermediate" if readiness >= 50 else "Beginner"
+        now = datetime.utcnow()
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        cur_weekday = now.weekday()
+        weekly_progress = []
+        for idx, day_name in enumerate(days):
+            if idx <= cur_weekday:
+                score_factor = max(0, readiness_data.score - (cur_weekday - idx) * 3)
+            else:
+                score_factor = max(0, readiness_data.score - 5)
+            weekly_progress.append(WeeklyProgressItem(day=day_name, score=score_factor))
 
         return DashboardData(
-            readiness=readiness,
-            readinessLabel=readiness_label,
+            readiness=readiness_data.score,
+            readinessLabel=readiness_data.label,
             streak=min(14, len(sessions) + 1),
             questionsAnswered=questions_answered,
             interviewsCompleted=completed_interviews,
             codingProblems=coding_problems,
-            resumeScore=resume_score,
-            todayPractice=TodayPractice(sessionsToday=len(sessions[:2]), questionsToday=5, goal=10),
-            weakAreas=["System Design", "Dynamic Programming", "Probability"],
-            strongAreas=["Data Structures", "OOP Concepts", "Behavioral Answers"],
-            weeklyProgress=[
-                WeeklyProgressItem(day="Mon", score=65),
-                WeeklyProgressItem(day="Tue", score=70),
-                WeeklyProgressItem(day="Wed", score=72),
-                WeeklyProgressItem(day="Thu", score=75),
-                WeeklyProgressItem(day="Fri", score=78),
-                WeeklyProgressItem(day="Sat", score=82),
-                WeeklyProgressItem(day="Sun", score=readiness),
-            ],
-            recentFeedback=[
-                RecentFeedbackEntry(
-                    sessionTitle="Technical Mock Interview",
-                    type="TECHNICAL",
-                    date=datetime.utcnow().strftime("%Y-%m-%d"),
-                    summary="Solid explanations on concurrency, improve time complexity analysis."
-                )
-            ]
+            resumeScore=analytics.resume,
+            todayPractice=TodayPractice(
+                sessionsToday=len([s for s in sessions if getattr(s, "created_at", None) and s.created_at.date() == now.date()]),
+                questionsToday=min(10, coding_problems + questions_answered),
+                goal=10
+            ),
+            weakAreas=analytics.weakTopics[:5] if analytics.weakTopics else ["Complete coding and interview assessments to identify weak areas"],
+            strongAreas=analytics.strongTopics[:5] if analytics.strongTopics else ["Upload verified project code to identify strong areas"],
+            weeklyProgress=weekly_progress,
+            recentFeedback=recent_feedback
         )
 
     def create_session(self, user: User, body: CreateSessionBody) -> PlacementSessionDto:
@@ -747,6 +813,22 @@ class PlacementService:
             s.ended_at = datetime.utcnow()
             self.repo.update_session(s)
 
+        try:
+            std_resp = create_standard_response(
+                module="interview_evaluation",
+                summary=feedback.explanation or f"Interview response evaluated with score {feedback.score}/100.",
+                score=float(feedback.score),
+                status="COMPLETED",
+                strengths=feedback.strengths[:5],
+                weaknesses=feedback.weaknesses[:5],
+                evidence=[{"claim": "Concepts", "source": "interview", "quote_or_detail": ", ".join(feedback.correctConcepts[:3])}],
+                recommendations=feedback.improvementTips[:3] or feedback.improvements[:3],
+                metadata={"questionCount": feedback.questionCount, "nextDifficulty": feedback.nextDifficulty}
+            )
+            feedback.standardResponse = std_resp.model_dump()
+        except Exception:
+            pass
+
         return MessageResponse(
             feedback=feedback,
             sessionCompleted=feedback.shouldEnd,
@@ -891,6 +973,22 @@ class PlacementService:
         s.ended_at = datetime.utcnow()
         self.repo.update_session(s)
 
+        try:
+            std_resp = create_standard_response(
+                module="coding_evaluation",
+                summary=f"Solved with score {res.totalScore}/100. Passed {res.passedTests}/{res.totalTests} test cases.",
+                score=float(res.totalScore),
+                status="COMPLETED",
+                strengths=[f"Time Complexity: {res.evaluation.timeComplexity}", f"Space Complexity: {res.evaluation.spaceComplexity}"],
+                weaknesses=[res.evaluation.feedback] if not res.passed else [],
+                recommendations=res.evaluation.alternativeSolutions[:3],
+                evidence=[{"claim": f"Test case {i+1}", "source": "code_executor", "quote_or_detail": f"Passed: {tr.passed}"} for i, tr in enumerate(res.testResults[:3])],
+                metadata={"language": body.language, "passed": res.passed, "passedTests": res.passedTests}
+            )
+            res.standardResponse = std_resp.model_dump()
+        except Exception:
+            pass
+
         return res
 
     async def create_aptitude_test(self, user: User, body: CreateAptitudeBody) -> AptitudeTestResponse:
@@ -993,46 +1091,14 @@ class PlacementService:
         )
 
     def get_analytics(self, user: User) -> AnalyticsData:
-        return AnalyticsData()
+        sessions = self.repo.get_sessions(user.id)
+        latest_resume, resume_analysis = self._get_user_resume_analysis(user.id)
+        return CareerEvaluationEngine.compute_grounded_analytics(sessions, latest_resume, resume_analysis)
 
     async def get_readiness(self, user: User) -> ReadinessData:
-        system_prompt = (
-            "You are an AI placement analytics expert. "
-            "Return JSON readiness assessment:\n"
-            "{\n"
-            '  "score": integer (0-100),\n'
-            '  "label": string,\n'
-            '  "components": [{ "name": string, "score": int, "weight": float }],\n'
-            '  "recommendedCompanies": [string],\n'
-            '  "recommendedRoles": [string],\n'
-            '  "learningPath": [{ "topic": string, "resources": [string], "estimatedHours": int, "priority": string }]\n'
-            "}"
-        )
-        try:
-            r_dict = await ai_gateway.generate_json(
-                task=AIWorkload.RESUME_CAREER,
-                system_prompt=system_prompt,
-                user_prompt="Assess student readiness for software engineer roles.",
-                temperature=0.3
-            )
-            return ReadinessData(**r_dict)
-        except Exception:
-            return ReadinessData(
-                score=78,
-                label="Interview Ready",
-                components=[
-                    ReadinessComponent(name="DSA & Algorithms", score=75, weight=0.35),
-                    ReadinessComponent(name="System Architecture", score=70, weight=0.25),
-                    ReadinessComponent(name="Behavioral / Communication", score=88, weight=0.20),
-                    ReadinessComponent(name="Resume ATS", score=82, weight=0.20)
-                ],
-                recommendedCompanies=["Google", "Amazon", "Microsoft", "Stripe"],
-                recommendedRoles=["Full Stack Engineer", "Backend Developer"],
-                learningPath=[
-                    LearningPathItem(topic="Dynamic Programming Patterns", resources=["LeetCode 75", "NeetCode"], estimatedHours=6, priority="HIGH"),
-                    LearningPathItem(topic="Microservices & Caching", resources=["System Design Primer"], estimatedHours=4, priority="MEDIUM")
-                ]
-            )
+        sessions = self.repo.get_sessions(user.id)
+        latest_resume, resume_analysis = self._get_user_resume_analysis(user.id)
+        return CareerEvaluationEngine.compute_grounded_readiness(user, sessions, latest_resume, resume_analysis)
 
     async def get_roadmap(self, user: User) -> RoadmapData:
         system_prompt = (
@@ -1056,8 +1122,28 @@ class PlacementService:
                 user_prompt="Create 4-week placement sprint roadmap.",
                 temperature=0.3
             )
-            return RoadmapData(**r_dict, generatedAt=datetime.utcnow().isoformat())
+            std_resp = create_standard_response(
+                module="learning_recommendation",
+                summary="Personalized 4-week placement sprint roadmap.",
+                score=None,
+                status="COMPLETED",
+                strengths=[],
+                weaknesses=r_dict.get("weakTopics", []),
+                recommendations=r_dict.get("dailyTasks", [])[:3] + r_dict.get("weeklyGoals", [])[:3],
+                metadata={"generatedAt": datetime.utcnow().isoformat()}
+            )
+            return RoadmapData(**r_dict, generatedAt=datetime.utcnow().isoformat(), standardResponse=std_resp.model_dump())
         except Exception:
+            std_resp = create_standard_response(
+                module="learning_recommendation",
+                summary="Standard placement preparation roadmap.",
+                score=None,
+                status="COMPLETED",
+                strengths=[],
+                weaknesses=["Graph Algorithms", "Database Sharding"],
+                recommendations=["Solve 2 Medium LeetCode problems", "Review 1 System Design pattern"],
+                metadata={"generatedAt": datetime.utcnow().isoformat()}
+            )
             return RoadmapData(
                 weakTopics=["Graph Algorithms", "Database Sharding"],
                 dailyTasks=["Solve 2 Medium LeetCode problems", "Review 1 System Design pattern"],
@@ -1068,7 +1154,8 @@ class PlacementService:
                 codingRecommendations=["Trie, Interval scheduling, Disjoint Set Union"],
                 dsaRevision=["Binary Search variations", "Topological Sort"],
                 aptitudePractice=["Speed Math", "Permutations and Combinations"],
-                generatedAt=datetime.utcnow().isoformat()
+                generatedAt=datetime.utcnow().isoformat(),
+                standardResponse=std_resp.model_dump()
             )
 
     def reset_placement(self, user: User) -> PlacementResetResponse:

@@ -127,6 +127,20 @@ const AnalyticsView: React.FC = () => {
         <StatChip icon={<TrendingUp size={16} />} label="Success rate" value={`${Math.round(data.successRate)}%`} />
       </div>
 
+      {data.scoreBreakdown && Object.keys(data.scoreBreakdown).length > 0 && (
+        <Card>
+          <SectionTitle icon={<Target size={16} />} title="Evidence Grounding & Audit Breakdown" subtitle="Transparent trace explaining how each dimension was derived from verified data" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Object.entries(data.scoreBreakdown).map(([dim, explanation]) => (
+              <div key={dim} className="rounded-xl border border-border bg-tag-bg/30 p-3.5 space-y-1">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted">{dim}</p>
+                <p className="text-sm font-semibold text-foreground">{explanation}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <SectionTitle icon={<CheckCircle2 size={16} />} title="Strong Topics" />

@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging, logger
 from app.core.database import init_db, SessionLocal
 from app.core.middleware import CorrelationIdMiddleware
+from app.core.error_handler import sanitize_error_detail
 from app.models.base import User
 from app.core.security import get_password_hash
 
@@ -78,13 +79,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Exception handlers ensuring { "message": "...", "detail": "..." } format for both React frontend and REST clients
+# Exception handlers ensuring sanitized, standardized { "message": "...", "detail": "...", "requestId": "..." } format
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     correlation_id = getattr(request.state, "correlation_id", None)
+    safe_detail = sanitize_error_detail(
+        exc.detail,
+        request_id=correlation_id,
+        status_code=exc.status_code,
+        path=request.url.path
+    )
     content = {
-        "message": exc.detail,
-        "detail": exc.detail,
+        "message": safe_detail,
+        "detail": safe_detail,
         "status": exc.status_code,
     }
     if correlation_id:
@@ -118,9 +125,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def generic_exception_handler(request: Request, exc: Exception):
     correlation_id = getattr(request.state, "correlation_id", None)
     logger.error(f"[SERVER-ERROR] Unhandled error [req={correlation_id}]: {exc}", exc_info=True)
+    safe_message = sanitize_error_detail(
+        str(exc),
+        request_id=correlation_id,
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        path=request.url.path
+    )
     content = {
-        "message": "An unexpected server error occurred. Please try again later.",
-        "detail": "An unexpected server error occurred. Please try again later.",
+        "message": safe_message,
+        "detail": safe_message,
         "status": status.HTTP_500_INTERNAL_SERVER_ERROR,
     }
     if correlation_id:

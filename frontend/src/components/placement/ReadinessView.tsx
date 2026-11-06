@@ -88,19 +88,31 @@ const ReadinessView: React.FC = () => {
         </Card>
 
         <Card className="lg:col-span-2">
-          <SectionTitle icon={<Gauge size={16} />} title="Component Breakdown" subtitle="Weighted readiness by area" />
-          <div className="space-y-3">
+          <SectionTitle icon={<Gauge size={16} />} title="Component Breakdown" subtitle="Weighted readiness grounded in verified assessments" />
+          <div className="space-y-4">
             {data.components.length > 0 ? (
               data.components.map((c) => (
-                <div key={c.name} className="flex items-center gap-4">
-                  <div className="w-32 shrink-0">
-                    <p className="text-sm font-semibold text-foreground">{c.name}</p>
-                    <p className="text-[10px] text-muted">weight {c.weight}%</p>
+                <div key={c.name} className="flex flex-col gap-1.5 border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{c.name}</p>
+                      <span className="text-[10px] text-muted font-medium">weight {c.weight}%</span>
+                      {c.isAssessed === false && (
+                        <Pill tone="amber">Pending Assessment</Pill>
+                      )}
+                    </div>
+                    <span className="text-sm font-bold text-foreground">
+                      {c.isAssessed === false ? 'Not Assessed' : `${Math.round(c.score)}%`}
+                    </span>
                   </div>
-                  <div className="flex-1">
-                    <ScoreBar label="" value={c.score} />
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <ScoreBar label="" value={c.isAssessed === false ? 0 : c.score} />
+                    </div>
                   </div>
-                  <span className="w-10 shrink-0 text-right text-sm font-bold text-foreground">{Math.round(c.score)}</span>
+                  {c.evidenceSummary && (
+                    <p className="text-xs text-muted italic">{c.evidenceSummary}</p>
+                  )}
                 </div>
               ))
             ) : (
@@ -142,6 +154,43 @@ const ReadinessView: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {data.skillEvaluations && data.skillEvaluations.length > 0 && (
+        <Card>
+          <SectionTitle icon={<Gauge size={16} />} title="2026 Engineering Skill Matrix" subtitle="Dimension 1: Resume Evidence Level • Dimension 2: 2026 Industry Benchmark" />
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {data.skillEvaluations.map((se, i) => {
+              const evidenceTone: Record<string, 'emerald' | 'amber' | 'slate' | 'rose'> = {
+                'Demonstrated': 'emerald',
+                'Partially demonstrated': 'amber',
+                'Insufficient info': 'slate',
+                'Not demonstrated': 'rose',
+              };
+              const benchmarkTone: Record<string, 'violet' | 'sky' | 'amber' | 'teal' | 'slate'> = {
+                'Essential': 'violet',
+                'Expected': 'sky',
+                'Role-dependent': 'amber',
+                'Advanced': 'teal',
+              };
+              return (
+                <div key={i} className="rounded-xl border border-border bg-tag-bg/30 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-foreground">{se.skill}</p>
+                    <Pill tone={benchmarkTone[se.benchmark] || 'slate'}>{se.benchmark}</Pill>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted">Evidence:</span>
+                    <Pill tone={evidenceTone[se.evidenceLevel] || 'slate'}>{se.evidenceLevel}</Pill>
+                  </div>
+                  {se.evidenceDetail && (
+                    <p className="text-xs text-muted line-clamp-2">{se.evidenceDetail}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card>
         <SectionTitle icon={<GraduationCap size={16} />} title="Learning Path" subtitle="Your personalized upskilling roadmap" />

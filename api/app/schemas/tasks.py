@@ -73,6 +73,7 @@ class AssistantResponse(BaseModel):
     updatedTask: Optional[TaskDto] = None
     createdTask: Optional[TaskDto] = None
     newChunks: List[AssistantChunk] = []
+    standardResponse: Optional[Dict[str, Any]] = None
 
 class AssistantContextResponse(BaseModel):
     now: str
