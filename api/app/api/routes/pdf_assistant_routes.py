@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.rate_limiter import rate_limit
 from app.api.dependencies import get_current_user, security
 from app.core.security import decode_access_token
 from app.core.logging import logger
@@ -24,7 +25,7 @@ from app.schemas.pdf_assistant import (
 
 router = APIRouter(prefix="/pdf-assistant", tags=["PDF Assistant"])
 
-@router.post("/workspaces/{workspaceId}/documents", response_model=PdfUploadResponse)
+@router.post("/workspaces/{workspaceId}/documents", response_model=PdfUploadResponse, dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))])
 async def upload_pdf_document(
     workspaceId: str,
     background_tasks: BackgroundTasks,
@@ -138,7 +139,7 @@ def delete_pdf_document(
     service.delete_document(workspaceId, documentId, current_user)
     return None
 
-@router.post("/workspaces/{workspaceId}/documents/{documentId}/chat", response_model=PdfChatResponse)
+@router.post("/workspaces/{workspaceId}/documents/{documentId}/chat", response_model=PdfChatResponse, dependencies=[Depends(rate_limit(max_requests=25, window_seconds=60))])
 async def chat_pdf_document(
     workspaceId: str,
     documentId: str,
@@ -149,7 +150,7 @@ async def chat_pdf_document(
     service = PdfAssistantService(db)
     return await service.chat(workspaceId, documentId, current_user, request.question)
 
-@router.post("/workspaces/{workspaceId}/documents/{documentId}/chat/stream")
+@router.post("/workspaces/{workspaceId}/documents/{documentId}/chat/stream", dependencies=[Depends(rate_limit(max_requests=25, window_seconds=60))])
 async def chat_pdf_document_stream(
     workspaceId: str,
     documentId: str,

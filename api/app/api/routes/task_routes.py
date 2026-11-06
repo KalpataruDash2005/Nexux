@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.rate_limiter import rate_limit
 from app.api.dependencies import get_current_user
 from app.models.base import User
 from app.services.task_service import TaskService
@@ -50,7 +51,7 @@ def get_task_summary(
     service = TaskService(db)
     return service.get_summary(current_user)
 
-@router.post("/ai-plan", response_model=AiPlanResponse)
+@router.post("/ai-plan", response_model=AiPlanResponse, dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))])
 async def generate_ai_plan(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -67,7 +68,7 @@ def persist_ai_plan(
     service = TaskService(db)
     return service.persist_ai_plan(current_user, request.plan, request.saveNotesToTasks)
 
-@router.post("/assistant", response_model=AssistantResponse)
+@router.post("/assistant", response_model=AssistantResponse, dependencies=[Depends(rate_limit(max_requests=30, window_seconds=60))])
 async def task_assistant(
     request: AssistantRequest,
     current_user: User = Depends(get_current_user),

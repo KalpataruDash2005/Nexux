@@ -1,3 +1,4 @@
+from app.core.audit import log_security_event, SecurityEventType
 from typing import Optional, List
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -100,6 +101,13 @@ class JobService:
         if not job:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
+        # Multi-Tenant BOLA Isolation: Only the posting recruiter or an admin can view applications
+        if job.posted_by_id != user.id and user.role.upper() != "ADMIN":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to view applications for this job"
+            )
+
         apps = self.repo.get_applications_by_job(job_id)
         result = []
         for a in apps:
@@ -127,9 +135,16 @@ class JobService:
         if not app:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
 
+        job = self.repo.get_by_id(app.job_id)
+        # Multi-Tenant BOLA Isolation: Only the posting recruiter or an admin can update application status
+        if not job or (job.posted_by_id != user.id and user.role.upper() != "ADMIN"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to modify this application"
+            )
+
         app.status = status_val.upper()
         saved = self.repo.update_application(app)
-        job = self.repo.get_by_id(saved.job_id)
         student = self.user_repo.get_by_id(saved.student_id)
         profile = self.profile_repo.get_by_user_id(saved.student_id) if student else None
         applicant_name = f"{profile.first_name} {profile.last_name or ''}".strip() if profile and profile.first_name else None

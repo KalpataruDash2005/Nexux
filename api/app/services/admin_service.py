@@ -17,6 +17,7 @@ from app.schemas.jobs import JobDto
 from app.document_processing.pdf_extractor import PDFExtractor
 from app.ai import ai_gateway, AIWorkload, AITask
 from app.core.logging import logger
+from app.core.file_security import validate_and_sanitize_upload
 
 class AdminService:
     def __init__(self, db: Session):
@@ -89,9 +90,9 @@ class AdminService:
         self.repo.delete_feedback(f)
 
     async def upload_aptitude_set(self, file: UploadFile, title: Optional[str], admin: User) -> AptitudeSetDto:
-        filename = file.filename or "questions.pdf"
-        set_title = title or filename.rsplit(".", 1)[0]
         file_bytes = await file.read()
+        filename = validate_and_sanitize_upload(file.filename, file_bytes, allowed_extensions=(".pdf", ".txt"))
+        set_title = title or filename.rsplit(".", 1)[0]
         text, _ = PDFExtractor.extract_from_bytes(file_bytes)
 
         system_prompt = (

@@ -7,6 +7,9 @@ class WorkspaceRepository:
     def __init__(self, db: Session):
         self.db = db
 
+    def get_by_id(self, workspace_id: str) -> Optional[Workspace]:
+        return self.db.query(Workspace).filter(Workspace.id == workspace_id).first()
+
     def get_by_id_and_owner(self, workspace_id: str, owner_id: str) -> Optional[Workspace]:
         return self.db.query(Workspace).filter(
             Workspace.id == workspace_id,

@@ -8,6 +8,31 @@ class Settings(BaseSettings):
     APP_NAME: str = "CareerOS Backend"
     API_V1_PREFIX: str = "/api/v1"
     DEBUG: bool = False
+    ENVIRONMENT: str = Field(default="development", description="Environment tier: development, staging, production")
+    ENABLE_HOST_CODE_EXECUTION: bool = Field(default=False, description="Allow host subprocess execution (dev/test only)")
+
+    @property
+    def is_host_execution_permitted(self) -> bool:
+        if os.getenv("VERCEL") == "1" or self.ENVIRONMENT.lower() == "production":
+            return False
+        return bool(self.ENABLE_HOST_CODE_EXECUTION)
+
+    def validate_security(self):
+        default_placeholder = "careeros-super-secret-jwt-key-with-at-least-256-bits-length-for-security-purposes!"
+        is_prod = self.ENVIRONMENT.lower() == "production" or os.getenv("VERCEL") == "1"
+
+        if is_prod:
+            if not self.JWT_SECRET or self.JWT_SECRET == default_placeholder or len(self.JWT_SECRET) < 32:
+                raise ValueError("CRITICAL SECURITY ERROR: In production, JWT_SECRET must be explicitly set to a cryptographically strong secret of at least 32 characters.")
+
+            if self.ENABLE_HOST_CODE_EXECUTION:
+                raise ValueError("CRITICAL SECURITY ERROR: ENABLE_HOST_CODE_EXECUTION must not be enabled in production environments.")
+
+            if self.DEBUG:
+                raise ValueError("CRITICAL SECURITY ERROR: DEBUG mode must be disabled in production.")
+
+            if "*" in self.cors_origins_list:
+                raise ValueError("CRITICAL SECURITY ERROR: Wildcard CORS origin '*' is strictly prohibited in production.")
     
     # Database & Connection Pooling (MySQL / PostgreSQL / SQLite)
     DATABASE_URL: str = Field(
@@ -129,7 +154,7 @@ class Settings(BaseSettings):
     
     # Admin Credentials
     CAREEROS_ADMIN_EMAIL: str = "admin@nexora.app"
-    CAREEROS_ADMIN_PASSWORD: Optional[str] = "Admin@12345"
+    CAREEROS_ADMIN_PASSWORD: Optional[str] = None
 
     # Supabase Object Storage (for persistent PDF storage in serverless)
     SUPABASE_URL: Optional[str] = None

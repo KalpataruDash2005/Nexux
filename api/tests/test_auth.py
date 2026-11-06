@@ -32,6 +32,15 @@ def test_register_invalid_role(client: TestClient):
     response = client.post("/api/v1/auth/register", json=payload)
     assert response.status_code == 400
     assert "Role must be STUDENT or RECRUITER" in response.json().get("detail", "")
+def test_register_admin_role_rejected(client: TestClient):
+    payload = {
+        "email": "tryadmin@nexux.app",
+        "password": "Password123!",
+        "role": "ADMIN"
+    }
+    response = client.post("/api/v1/auth/register", json=payload)
+    assert response.status_code == 400
+    assert "Role must be STUDENT or RECRUITER" in response.json().get("detail", "")
 
 def test_login_success(client: TestClient, test_user: User):
     payload = {

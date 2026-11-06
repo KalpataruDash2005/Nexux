@@ -1,3 +1,10 @@
+import pytest
+from app.core.config import settings
+
+@pytest.fixture(autouse=True)
+def enable_host_exec_for_platform_tests(monkeypatch):
+    monkeypatch.setattr(settings, "ENABLE_HOST_CODE_EXECUTION", True)
+
 import asyncio
 import json
 from unittest.mock import patch, AsyncMock

@@ -21,6 +21,7 @@ from app.document_processing.pdf_extractor import PDFExtractor
 from app.rag.pipeline import rag_pipeline
 from app.ai import ai_gateway, AIWorkload
 from app.core.logging import logger
+from app.core.file_security import validate_and_sanitize_upload
 
 MAX_FILE_SIZE = settings.MAX_UPLOAD_SIZE_BYTES  # 4.5 MB Vercel Serverless Function limit
 
@@ -217,19 +218,9 @@ class PdfAssistantService:
         if not workspace:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found or access denied")
 
-        filename = file.filename or "document.pdf"
-        lower_name = filename.lower()
-        if not (lower_name.endswith(".pdf") or lower_name.endswith(".txt")):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only PDF and TXT files are supported")
-
         file_bytes = await file.read()
+        filename = validate_and_sanitize_upload(file.filename, file_bytes, allowed_extensions=(".pdf", ".txt"), max_size_bytes=MAX_FILE_SIZE)
         file_size = len(file_bytes)
-        if file_size > MAX_FILE_SIZE:
-            max_mb = MAX_FILE_SIZE / (1024 * 1024)
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File exceeds maximum size limit of {max_mb:.1f} MB allowed for serverless processing."
-            )
 
         storage_key = f"{workspace.id}_{uuid.uuid4().hex}"
         file_path = os.path.join(UPLOAD_DIR, f"{storage_key}.pdf")
@@ -252,7 +243,8 @@ class PdfAssistantService:
             chunk_count = rag_pipeline.index_text(
                 workspace_id=workspace.id,
                 document_id=doc_id,
-                text=text
+                text=text,
+                owner_id=user.id
             )
 
             # Generate immediate structured academic summary
@@ -355,7 +347,8 @@ class PdfAssistantService:
             chunk_count = rag_pipeline.index_text(
                 workspace_id=workspace_id,
                 document_id=doc_id,
-                text=text
+                text=text,
+                owner_id=user.id
             )
 
             # Mark READY immediately as soon as RAG indexing completes so student can view & chat!

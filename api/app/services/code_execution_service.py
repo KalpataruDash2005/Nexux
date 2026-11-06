@@ -1,3 +1,4 @@
+from app.core.audit import log_security_event, SecurityEventType
 import ast
 import json
 import os
@@ -21,6 +22,7 @@ from app.core.config import settings
 from app.core.logging import logger
 
 ALLOWED_LANGUAGES = {"python", "javascript", "java", "cpp", "c++"}
+MAX_CODE_LENGTH: int = 50_000
 
 class CodeExecutionService:
     @staticmethod
@@ -92,6 +94,84 @@ class CodeExecutionService:
         return True, None
 
     @staticmethod
+    def validate_code_security(language: str, code: str) -> Tuple[bool, Optional[str]]:
+        """
+        Static security analysis across submitted source code.
+        Rejects prohibited imports, OS access, network sockets, reflection, or unsafe calls.
+        """
+        if not code:
+            return True, None
+
+        lang = CodeExecutionService.normalize_language(language)
+
+        if lang == "python":
+            try:
+                tree = ast.parse(code)
+            except SyntaxError:
+                # Syntax error will be caught by validate_syntax_and_compilation
+                return True, None
+
+            banned_modules = {
+                "os", "subprocess", "socket", "shutil", "urllib", "requests", "http",
+                "pty", "posix", "ctypes", "winreg", "webbrowser", "pickle", "shelve",
+                "multiprocessing", "threading"
+            }
+            banned_calls = {"eval", "exec", "__import__"}
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        root_mod = alias.name.split(".")[0]
+                        if root_mod in banned_modules:
+                            return False, f"Security Violation: Prohibited import '{alias.name}' detected."
+                elif isinstance(node, ast.ImportFrom):
+                    if node.module:
+                        root_mod = node.module.split(".")[0]
+                        if root_mod in banned_modules:
+                            return False, f"Security Violation: Prohibited import from '{node.module}' detected."
+                elif isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name) and node.func.id in banned_calls:
+                        return False, f"Security Violation: Prohibited dynamic call '{node.func.id}()' detected."
+
+        elif lang == "javascript":
+            banned_js_patterns = [
+                (r"child_process", "child_process invocation"),
+                (r"require\s*\(\s*['\"]fs['\"]\s*\)", "filesystem import"),
+                (r"require\s*\(\s*['\"]net['\"]\s*\)", "network import"),
+                (r"process\.env", "process environment access"),
+                (r"\beval\s*\(", "eval() execution"),
+                (r"new\s+Function\s*\(", "Function constructor execution"),
+            ]
+            for pattern, desc in banned_js_patterns:
+                if re.search(pattern, code, re.IGNORECASE):
+                    return False, f"Security Violation: Prohibited construct ({desc}) detected."
+
+        elif lang == "cpp":
+            banned_cpp_patterns = [
+                (r"#include\s*<sys/", "POSIX system header"),
+                (r"#include\s*<unistd\.h>", "UNIX syscall header"),
+                (r"#include\s*<windows\.h>", "Windows native header"),
+                (r"\bsystem\s*\(", "system() shell execution"),
+                (r"\bfork\s*\(", "process forking"),
+            ]
+            for pattern, desc in banned_cpp_patterns:
+                if re.search(pattern, code, re.IGNORECASE):
+                    return False, f"Security Violation: Prohibited construct ({desc}) detected."
+
+        elif lang == "java":
+            banned_java_patterns = [
+                (r"ProcessBuilder", "ProcessBuilder invocation"),
+                (r"Runtime\.getRuntime\(\)", "Runtime exec invocation"),
+                (r"java\.net\.", "Network socket package"),
+                (r"java\.lang\.reflect\.", "Reflection package"),
+            ]
+            for pattern, desc in banned_java_patterns:
+                if re.search(pattern, code, re.IGNORECASE):
+                    return False, f"Security Violation: Prohibited construct ({desc}) detected."
+
+        return True, None
+
+    @staticmethod
     def get_safe_env() -> Dict[str, str]:
         """
         Produce a stripped environment containing only basic OS runtime variables.
@@ -110,6 +190,8 @@ class CodeExecutionService:
         """
         Checks whether the necessary interpreter/compiler is present on the current host.
         """
+        if not settings.is_host_execution_permitted:
+            return False
         lang = cls.normalize_language(language)
         if lang == "python":
             return bool(sys.executable)
@@ -173,6 +255,9 @@ if __name__ == '__main__':
         Returns: (success, stdout, stderr, status, execution_time_ms)
         status values: "Success", "Compilation Error", "Runtime Error", "Time Limit Exceeded"
         """
+        if not settings.is_host_execution_permitted:
+            logger.warning("[SECURITY] Host code execution blocked by policy.")
+            return False, "", "Host code execution is disabled in this environment. Isolated sandbox required.", "Compilation Error", 0.0
         lang = cls.normalize_language(language)
         safe_env = cls.get_safe_env()
         exec_code = cls.prepare_executable_code(lang, code, input_data)
@@ -367,6 +452,14 @@ if __name__ == '__main__':
         Executes ONLY visible test cases (+ optional custom input).
         Never executes or touches hidden test cases.
         """
+        # Maximum code length limit
+        if len(code_str or "") > MAX_CODE_LENGTH:
+            return CodingRunResponse(
+                status="Compilation Error",
+                passed=False,
+                compilationError=f"Code length ({len(code_str)} chars) exceeds maximum allowable limit of {MAX_CODE_LENGTH} characters."
+            )
+
         lang = cls.normalize_language(language)
         if not lang:
             return CodingRunResponse(
@@ -381,6 +474,16 @@ if __name__ == '__main__':
                 status="Wrong Answer",
                 passed=False,
                 compilationError="Submitted code is empty, a stub, or incomplete."
+            )
+
+        # Static security check
+        is_safe, sec_error = cls.validate_code_security(lang, code_str)
+        if not is_safe:
+            log_security_event(SecurityEventType.CODE_SECURITY_VIOLATION, {"language": lang, "violation": sec_error}, severity="ERROR")
+            return CodingRunResponse(
+                status="Compilation Error",
+                passed=False,
+                compilationError=sec_error
             )
 
         # Syntax check
@@ -607,6 +710,42 @@ if __name__ == '__main__':
         Security: Masks hidden test case inputs and expected outputs so secrets are never revealed.
         """
         total_tests = len(raw_test_cases)
+
+        # Maximum code length limit
+        if len(code_str or "") > MAX_CODE_LENGTH:
+            err_msg = f"Code length ({len(code_str)} chars) exceeds maximum allowable limit of {MAX_CODE_LENGTH} characters."
+            return CodingSubmitResponse(
+                submissionId=str(uuid.uuid4())[:8],
+                status="Compilation Error",
+                evaluation=CodingEvaluation(
+                    correctness=0,
+                    timeComplexity="N/A",
+                    spaceComplexity="N/A",
+                    codeQuality=0,
+                    naming=0,
+                    optimization=0,
+                    feedback=err_msg,
+                    alternativeSolutions=[],
+                    expectedQuestions=[]
+                ),
+                passed=False,
+                totalScore=0,
+                testResults=[
+                    CodingTestResult(
+                        passed=False,
+                        input="[Hidden Test Case]" if tc.get("hidden", False) else str(tc.get("input", "")),
+                        expectedOutput="[Hidden Expected Output]" if tc.get("hidden", False) else str(tc.get("expectedOutput", "")),
+                        actualOutput=f"None ({err_msg})",
+                        error=err_msg,
+                        hidden=bool(tc.get("hidden", False)),
+                        status="Compilation Error"
+                    ) for tc in raw_test_cases
+                ],
+                passedTests=0,
+                totalTests=total_tests,
+                executionTimeMs=0.0
+            )
+
         lang = cls.normalize_language(language)
 
         if not lang:
@@ -644,6 +783,41 @@ if __name__ == '__main__':
                 passed=False,
                 totalScore=0,
                 testResults=test_results,
+                passedTests=0,
+                totalTests=total_tests,
+                executionTimeMs=0.0
+            )
+
+        # Static security check
+        is_safe, sec_error = cls.validate_code_security(lang, code_str)
+        if not is_safe:
+            return CodingSubmitResponse(
+                submissionId=str(uuid.uuid4())[:8],
+                status="Compilation Error",
+                evaluation=CodingEvaluation(
+                    correctness=0,
+                    timeComplexity="N/A",
+                    spaceComplexity="N/A",
+                    codeQuality=0,
+                    naming=0,
+                    optimization=0,
+                    feedback=sec_error,
+                    alternativeSolutions=[],
+                    expectedQuestions=[]
+                ),
+                passed=False,
+                totalScore=0,
+                testResults=[
+                    CodingTestResult(
+                        passed=False,
+                        input="[Hidden Test Case]" if tc.get("hidden", False) else str(tc.get("input", "")),
+                        expectedOutput="[Hidden Expected Output]" if tc.get("hidden", False) else str(tc.get("expectedOutput", "")),
+                        actualOutput=f"None ({sec_error})",
+                        error=sec_error,
+                        hidden=bool(tc.get("hidden", False)),
+                        status="Compilation Error"
+                    ) for tc in raw_test_cases
+                ],
                 passedTests=0,
                 totalTests=total_tests,
                 executionTimeMs=0.0

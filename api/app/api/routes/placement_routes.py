@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.rate_limiter import rate_limit
 from app.api.dependencies import get_current_user
 from app.models.base import User
 from app.services.placement_service import PlacementService
@@ -36,7 +37,7 @@ from app.schemas.placement import (
 
 router = APIRouter(prefix="/placement", tags=["Placement & Careers"])
 
-@router.post("/resume/analyze", response_model=ResumeResponse)
+@router.post("/resume/analyze", response_model=ResumeResponse, dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))])
 async def analyze_resume(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
@@ -128,7 +129,7 @@ async def start_session(
     service = PlacementService(db)
     return await service.start_session(id, current_user)
 
-@router.post("/sessions/{id}/messages", response_model=MessageResponse)
+@router.post("/sessions/{id}/messages", response_model=MessageResponse, dependencies=[Depends(rate_limit(max_requests=30, window_seconds=60))])
 async def send_message(
     id: str,
     body: SendMessageRequest,
@@ -174,7 +175,7 @@ async def create_coding(
     service = PlacementService(db)
     return await service.create_coding_session(current_user, body)
 
-@router.post("/coding/{id}/run", response_model=CodingRunResponse)
+@router.post("/coding/{id}/run", response_model=CodingRunResponse, dependencies=[Depends(rate_limit(max_requests=20, window_seconds=60))])
 async def run_coding(
     id: str,
     body: RunCodingBody,
@@ -184,7 +185,7 @@ async def run_coding(
     service = PlacementService(db)
     return await service.run_coding(id, current_user, body)
 
-@router.post("/coding/{id}/submit", response_model=CodingSubmitResponse)
+@router.post("/coding/{id}/submit", response_model=CodingSubmitResponse, dependencies=[Depends(rate_limit(max_requests=10, window_seconds=60))])
 async def submit_coding(
     id: str,
     body: SubmitCodingBody,

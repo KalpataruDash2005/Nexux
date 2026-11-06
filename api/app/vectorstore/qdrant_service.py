@@ -65,6 +65,11 @@ class QdrantService:
                     field_name="documentId",
                     field_schema=models.PayloadSchemaType.KEYWORD
                 )
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name="ownerId",
+                    field_schema=models.PayloadSchemaType.KEYWORD
+                )
                 logger.info(f"Qdrant collection {self.collection_name} verified and indexed.")
             self._collection_ensured = True
         except Exception as e:
@@ -75,7 +80,8 @@ class QdrantService:
         workspace_id: str,
         document_id: str,
         chunks: List[str],
-        vectors: List[List[float]]
+        vectors: List[List[float]],
+        owner_id: Optional[str] = None
     ) -> int:
         if not chunks:
             return 0
@@ -91,6 +97,8 @@ class QdrantService:
                 "chunkIndex": idx,
                 "text": text
             }
+            if owner_id:
+                payload["ownerId"] = owner_id
             points.append(models.PointStruct(id=point_id, vector=vector, payload=payload))
 
         # Update in-memory fallback store idempotently
@@ -118,6 +126,7 @@ class QdrantService:
         workspace_id: str,
         query_vector: List[float],
         document_id: Optional[str] = None,
+        owner_id: Optional[str] = None,
         top_k: int = 5,
         min_score: float = 0.30
     ) -> List[Dict[str, Any]]:
@@ -135,6 +144,13 @@ class QdrantService:
                 models.FieldCondition(
                     key="documentId",
                     match=models.MatchValue(value=document_id)
+                )
+            )
+        if owner_id:
+            must_conditions.append(
+                models.FieldCondition(
+                    key="ownerId",
+                    match=models.MatchValue(value=owner_id)
                 )
             )
         qdrant_filter = models.Filter(must=must_conditions)
@@ -166,7 +182,8 @@ class QdrantService:
                         "score": hit.score,
                         "text": hit.payload.get("text", "") if hit.payload else "",
                         "chunkIndex": hit.payload.get("chunkIndex", 0) if hit.payload else 0,
-                        "documentId": hit.payload.get("documentId", "") if hit.payload else ""
+                        "documentId": hit.payload.get("documentId", "") if hit.payload else "",
+                        "ownerId": hit.payload.get("ownerId", "") if hit.payload else ""
                     })
                 return results
             except Exception as e:
@@ -176,7 +193,8 @@ class QdrantService:
         candidates = [
             p for p in self._in_memory_store
             if p["payload"].get("workspaceId") == workspace_id and
-               (not document_id or p["payload"].get("documentId") == document_id)
+               (not document_id or p["payload"].get("documentId") == document_id) and
+               (not owner_id or p["payload"].get("ownerId") == owner_id)
         ]
 
         scored = []
@@ -189,7 +207,8 @@ class QdrantService:
                     "score": sim,
                     "text": c["payload"].get("text", ""),
                     "chunkIndex": c["payload"].get("chunkIndex", 0),
-                    "documentId": c["payload"].get("documentId", "")
+                    "documentId": c["payload"].get("documentId", ""),
+                    "ownerId": c["payload"].get("ownerId", "")
                 })
 
         scored.sort(key=lambda x: x["score"], reverse=True)

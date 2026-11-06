@@ -40,6 +40,13 @@ build/
 **/.env.*
 !.env.example
 !**/.env.example
+*.pem
+*.key
+*.secret
+*.p12
+id_rsa
+id_rsa.*
+*.keystore
 
 # Python / FastAPI
 __pycache__/

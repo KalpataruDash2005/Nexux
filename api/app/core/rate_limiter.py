@@ -1,9 +1,42 @@
+from app.core.audit import log_security_event, SecurityEventType
+import hashlib
 import time
 from typing import Dict, Tuple, List
 from collections import defaultdict
 from fastapi import Request, HTTPException, status
 from app.core.config import settings
 from app.core.logging import logger
+
+def get_client_identifier(request: Request) -> str:
+    """
+    Extracts high-fidelity client identification across reverse proxies (Vercel, Cloudflare).
+    Combines client IP with user authentication hash when available for granular per-user rate limiting.
+    """
+    # 1. Cloudflare header
+    client_ip = request.headers.get("cf-connecting-ip")
+    if not client_ip:
+        # 2. X-Forwarded-For (first IP is the original client)
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+            if parts:
+                client_ip = parts[0]
+
+    # 3. X-Real-IP
+    if not client_ip:
+        client_ip = request.headers.get("x-real-ip")
+
+    # 4. Socket host fallback
+    if not client_ip:
+        client_ip = request.client.host if request.client else "unknown"
+
+    # 5. Blend in auth token hash if present to isolate users behind corporate NAT
+    auth_header = request.headers.get("authorization", "")
+    if auth_header and auth_header.startswith("Bearer "):
+        token_hash = hashlib.sha256(auth_header.encode()).hexdigest()[:12]
+        return f"{client_ip}:user_{token_hash}"
+
+    return client_ip
 
 class InMemoryRateLimiter:
     """
@@ -51,15 +84,15 @@ limiter = InMemoryRateLimiter()
 
 def rate_limit(max_requests: int = 60, window_seconds: int = 60):
     """
-    FastAPI dependency for endpoint rate limiting based on client IP.
+    FastAPI dependency for endpoint rate limiting based on client IP / auth token.
     """
     async def dependency(request: Request):
         if not settings.RATE_LIMIT_ENABLED:
             return
 
-        client_ip = request.client.host if request.client else "unknown"
+        client_id = get_client_identifier(request)
         path = request.url.path
-        client_key = f"{client_ip}:{path}"
+        client_key = f"{client_id}:{path}"
 
         allowed, remaining = limiter.check_rate_limit(
             client_key=client_key,
@@ -68,11 +101,17 @@ def rate_limit(max_requests: int = 60, window_seconds: int = 60):
         )
 
         if not allowed:
-            logger.warning(f"[RATE-LIMIT] Client {client_ip} exceeded limit on {path} ({max_requests} req / {window_seconds}s)")
+            log_security_event(SecurityEventType.RATE_LIMIT_EXCEEDED, {"path": path, "max_requests": max_requests, "window_seconds": window_seconds}, client_ip=client_id, severity="WARNING")
+            logger.warning(f"[RATE-LIMIT] Client {client_id} exceeded limit on {path} ({max_requests} req / {window_seconds}s)")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Rate limit exceeded. Maximum {max_requests} requests per {window_seconds} seconds.",
-                headers={"Retry-After": str(window_seconds)}
+                headers={
+                    "Retry-After": str(window_seconds),
+                    "X-RateLimit-Limit": str(max_requests),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": str(window_seconds)
+                }
             )
 
     return dependency

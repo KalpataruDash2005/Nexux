@@ -22,6 +22,12 @@ class UserRepository:
         self.db.refresh(user)
         return user
 
+    def update(self, user: User) -> User:
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
     def get_all(self) -> List[User]:
         return self.db.query(User).order_by(User.created_at.desc()).all()
 

@@ -63,6 +63,7 @@ from app.services.code_execution_service import CodeExecutionService
 from app.services.career_evaluation_engine import CareerEvaluationEngine
 from app.schemas.ai_response import create_standard_response
 from app.core.logging import logger
+from app.core.file_security import validate_and_sanitize_upload
 
 def is_gibberish_or_random(text: str) -> bool:
     cleaned = (text or "").strip()
@@ -121,8 +122,8 @@ class PlacementService:
         self.repo = PlacementRepository(db)
 
     async def analyze_resume(self, user: User, file: UploadFile) -> ResumeResponse:
-        filename = file.filename or "resume.pdf"
         file_bytes = await file.read()
+        filename = validate_and_sanitize_upload(file.filename, file_bytes, allowed_extensions=(".pdf", ".txt"))
         text, _ = PDFExtractor.extract_from_bytes(file_bytes)
 
         if not text or len(text) < 50:

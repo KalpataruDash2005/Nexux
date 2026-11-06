@@ -124,43 +124,106 @@ async def ask_workspace_chat(
         return {"answer": answer, "sources": []}
 
 @router.get("/{workspaceId}/chat")
-def get_workspace_chat_messages(workspaceId: str, current_user: User = Depends(get_current_user)):
+def get_workspace_chat_messages(
+    workspaceId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return []
 
 @router.post("/{workspaceId}/sessions")
-def create_workspace_session(workspaceId: str, current_user: User = Depends(get_current_user)):
+def create_workspace_session(
+    workspaceId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return {"sessionId": "ws-session-1", "workspaceId": workspaceId}
 
 @router.get("/{workspaceId}/sessions")
-def get_workspace_sessions(workspaceId: str, current_user: User = Depends(get_current_user)):
+def get_workspace_sessions(
+    workspaceId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return []
 
 @router.delete("/{workspaceId}/sessions/{sessionId}")
-def delete_workspace_session(workspaceId: str, sessionId: str, current_user: User = Depends(get_current_user)):
+def delete_workspace_session(
+    workspaceId: str,
+    sessionId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return {"deleted": True}
 
 @router.post("/{workspaceId}/flashcards/generate")
-def generate_flashcards(workspaceId: str, current_user: User = Depends(get_current_user)):
+def generate_flashcards(
+    workspaceId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return []
 
 @router.get("/{workspaceId}/flashcards")
-def get_flashcards(workspaceId: str, current_user: User = Depends(get_current_user)):
+def get_flashcards(
+    workspaceId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return []
 
 @router.delete("/{workspaceId}/flashcards/{flashcardId}")
-def delete_flashcard(workspaceId: str, flashcardId: str, current_user: User = Depends(get_current_user)):
+def delete_flashcard(
+    workspaceId: str,
+    flashcardId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return {"deleted": True}
 
 @router.post("/{workspaceId}/quizzes/generate")
-def generate_quiz(workspaceId: str, current_user: User = Depends(get_current_user)):
+def generate_quiz(
+    workspaceId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return {"id": "quiz-1", "workspaceId": workspaceId, "title": "Auto-generated Quiz", "questions": []}
 
 @router.get("/{workspaceId}/quizzes")
-def get_quizzes(workspaceId: str, current_user: User = Depends(get_current_user)):
+def get_quizzes(
+    workspaceId: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     return []
 
 @router.get("/{workspaceId}/search")
-def search_workspace(workspaceId: str, query: str = "", current_user: User = Depends(get_current_user)):
+def search_workspace(
+    workspaceId: str,
+    query: str = "",
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    service = WorkspaceService(db)
+    service.get_workspace(workspaceId, current_user)
     from app.rag.pipeline import rag_pipeline
     hits = rag_pipeline.search_context(workspaceId, query, top_k=5)
     return hits

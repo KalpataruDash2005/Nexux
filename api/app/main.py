@@ -31,24 +31,28 @@ async def lifespan(app: FastAPI):
     # Startup
     setup_logging()
     logger.info(f"Starting {settings.APP_NAME}...")
+    settings.validate_security()
     init_db()
 
-    # Seed Admin User if configured
-    if settings.CAREEROS_ADMIN_EMAIL:
+    # Seed Admin User only if explicitly configured with complex credentials
+    if settings.CAREEROS_ADMIN_EMAIL and settings.CAREEROS_ADMIN_PASSWORD:
         db = SessionLocal()
         try:
             admin_email = settings.CAREEROS_ADMIN_EMAIL.lower().strip()
             existing_admin = db.query(User).filter(User.email == admin_email).first()
             if not existing_admin:
-                pwd = settings.CAREEROS_ADMIN_PASSWORD or "Admin@12345"
-                admin_user = User(
-                    email=admin_email,
-                    password_hash=get_password_hash(pwd),
-                    role="ADMIN"
-                )
-                db.add(admin_user)
-                db.commit()
-                logger.info(f"Seeded initial admin user: {admin_email}")
+                pwd = settings.CAREEROS_ADMIN_PASSWORD
+                if len(pwd) >= 12:
+                    admin_user = User(
+                        email=admin_email,
+                        password_hash=get_password_hash(pwd),
+                        role="ADMIN"
+                    )
+                    db.add(admin_user)
+                    db.commit()
+                    logger.info(f"Seeded initial admin user: {admin_email}")
+                else:
+                    logger.warning("Admin seeding skipped: CAREEROS_ADMIN_PASSWORD must be at least 12 characters.")
         except Exception as e:
             logger.warning(f"Admin seeding skipped: {e}")
         finally:
@@ -65,17 +69,31 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Middlewares
+# 1. Observability Middlewares
 app.add_middleware(CorrelationIdMiddleware)
 
-# CORS Middleware
+# 2. Defense-in-Depth HTTP Security Headers Middleware
+@app.middleware("http")
+async def add_security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+    return response
+
+# 3. Strict CORS Middleware
 origins = settings.cors_origins_list
+# Regex strictly limits Vercel preview URLs to our specific projects rather than arbitrary *.vercel.app subdomains
+strict_preview_regex = r"^https:\/\/(.*\.)?(nexoraos\.space|nexora\.space)$|^https:\/\/(frontend|nexux)[a-zA-Z0-9\-]*\.vercel\.app$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins if origins != ["*"] else ["*"],
-    allow_origin_regex=r"https?://.*" if origins == ["*"] else r"https?://(.*\.)?(nexoraos\.space|nexora\.space|vercel\.app|localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origin_regex=None if origins == ["*"] else strict_preview_regex,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

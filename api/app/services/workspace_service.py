@@ -50,10 +50,18 @@ class WorkspaceService:
             for w, doc_count in workspace_tuples
         ]
 
-    def get_workspace(self, workspace_id: str, user: User) -> WorkspaceResponseDto:
-        w = self.repo.get_by_id_and_owner(workspace_id, user.id)
+    def get_workspace_entity(self, workspace_id: str, user: User) -> Workspace:
+        """Retrieves workspace verifying tenant/owner isolation or admin privilege."""
+        if user.role and user.role.upper() == "ADMIN":
+            w = self.repo.get_by_id(workspace_id)
+        else:
+            w = self.repo.get_by_id_and_owner(workspace_id, user.id)
         if not w:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        return w
+
+    def get_workspace(self, workspace_id: str, user: User) -> WorkspaceResponseDto:
+        w = self.get_workspace_entity(workspace_id, user)
         doc_count = self.repo.count_documents(w.id)
         return WorkspaceResponseDto(
             id=w.id,
@@ -67,9 +75,7 @@ class WorkspaceService:
         )
 
     def archive_workspace(self, workspace_id: str, user: User) -> WorkspaceResponseDto:
-        w = self.repo.get_by_id_and_owner(workspace_id, user.id)
-        if not w:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        w = self.get_workspace_entity(workspace_id, user)
         w.status = "ARCHIVED"
         saved = self.repo.update(w)
         return WorkspaceResponseDto(
@@ -84,9 +90,7 @@ class WorkspaceService:
         )
 
     def rename_workspace(self, workspace_id: str, user: User, data: RenameWorkspaceRequestDto) -> WorkspaceResponseDto:
-        w = self.repo.get_by_id_and_owner(workspace_id, user.id)
-        if not w:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        w = self.get_workspace_entity(workspace_id, user)
         if data.name:
             w.name = data.name.strip()
         if data.description is not None:
@@ -104,15 +108,11 @@ class WorkspaceService:
         )
 
     def delete_workspace(self, workspace_id: str, user: User):
-        w = self.repo.get_by_id_and_owner(workspace_id, user.id)
-        if not w:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        w = self.get_workspace_entity(workspace_id, user)
         self.repo.delete(w)
 
     def get_stats(self, workspace_id: str, user: User) -> WorkspaceStatsDto:
-        w = self.repo.get_by_id_and_owner(workspace_id, user.id)
-        if not w:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        w = self.get_workspace_entity(workspace_id, user)
         doc_count = self.repo.count_documents(w.id)
         return WorkspaceStatsDto(
             documentCount=doc_count,
