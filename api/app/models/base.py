@@ -28,6 +28,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="STUDENT")
+    token_version = Column(Integer, default=1, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -55,6 +56,7 @@ class StudentProfile(Base):
     graduation_year = Column(Integer, nullable=True)
     skills = Column(Text, nullable=True)
     resume_url = Column(String(500), nullable=True)
+    phone = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -402,3 +404,18 @@ class QuizQuestion(Base):
     correct_answer = Column(String(255), nullable=False)
 
     quiz = relationship("Quiz", back_populates="questions")
+
+
+class RevokedToken(Base):
+    __tablename__ = "revoked_tokens"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    jti = Column(String(64), unique=True, nullable=False, index=True)
+    token_hash = Column(String(64), nullable=True, index=True)
+    revoked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("idx_revoked_tokens_jti", "jti"),
+        Index("idx_revoked_tokens_expires", "expires_at"),
+    )

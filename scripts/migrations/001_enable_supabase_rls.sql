@@ -405,4 +405,45 @@ CREATE POLICY "quiz_questions_access" ON quiz_questions
         ) OR is_admin()
     );
 
+
+-- =============================================================================
+-- 22. SUMMARIES TABLE
+-- =============================================================================
+ALTER TABLE summaries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "service_role_bypass_summaries" ON summaries;
+CREATE POLICY "service_role_bypass_summaries" ON summaries
+    FOR ALL TO service_role
+    USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "summaries_access" ON summaries;
+CREATE POLICY "summaries_access" ON summaries
+    FOR ALL TO authenticated
+    USING (
+        document_id IN (
+            SELECT id FROM pdf_documents WHERE owner_id = auth.uid()::text
+        ) OR document_id IN (
+            SELECT d.id FROM documents d JOIN workspaces w ON d.workspace_id = w.id WHERE w.owner_id = auth.uid()::text
+        ) OR is_admin()
+    )
+    WITH CHECK (
+        document_id IN (
+            SELECT id FROM pdf_documents WHERE owner_id = auth.uid()::text
+        ) OR document_id IN (
+            SELECT d.id FROM documents d JOIN workspaces w ON d.workspace_id = w.id WHERE w.owner_id = auth.uid()::text
+        ) OR is_admin()
+    );
+
+-- =============================================================================
+-- 23. REVOKED TOKENS (Backend Session Revocation Storage)
+-- =============================================================================
+ALTER TABLE revoked_tokens ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "service_role_bypass_revoked_tokens" ON revoked_tokens;
+CREATE POLICY "service_role_bypass_revoked_tokens" ON revoked_tokens
+    FOR ALL TO service_role
+    USING (true) WITH CHECK (true);
+
+-- Authenticated and anonymous clients have no direct access to revoked tokens table
+
 COMMIT;

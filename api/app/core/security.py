@@ -35,10 +35,15 @@ def get_password_hash(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
-def create_access_token(subject: str, role: Optional[str] = None, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(
+    subject: str,
+    role: Optional[str] = None,
+    expires_delta: Optional[timedelta] = None,
+    token_version: int = 1
+) -> str:
     """
-    Creates a signed JWT with subject (email), jti, and optional role:
-    claims: { sub: subject, iat: now, exp: now + duration, jti: uuid, role: role }
+    Creates a signed JWT with subject (email), jti, token_version, and optional role:
+    claims: { sub: subject, iat: now, exp: now + duration, jti: uuid, role: role, token_version: token_version }
     """
     now = datetime.now(timezone.utc)
     if expires_delta:
@@ -52,6 +57,7 @@ def create_access_token(subject: str, role: Optional[str] = None, expires_delta:
         "iat": now,
         "exp": expire,
         "jti": jti,
+        "token_version": int(token_version or 1),
         "type": "access",
     }
     if role:
@@ -64,12 +70,17 @@ def create_access_token(subject: str, role: Optional[str] = None, expires_delta:
     )
     return encoded_jwt
 
-def decode_access_token(token: str) -> Optional[str]:
+def decode_token_claims(token: str, db: Optional[Any] = None) -> Dict[str, Any]:
     """
-    Decodes and validates the JWT, checking expiration, signature, and revocation status.
-    Returns the email (subject).
+    Decodes and validates the JWT, checking expiration, signature, and multi-tier revocation status:
+    1. In-memory LRU blocklist (fast-path)
+    2. RevokedToken database table (serverless distributed cross-instance path)
+    Returns the decoded claims dictionary.
     Raises jwt.PyJWTError on invalid, revoked, or expired token.
     """
+    import hashlib
+
+    # 1. Fast in-memory check
     if token_blocklist.is_revoked(token):
         logger.warning("[AUTH] Attempted use of revoked JWT token.")
         raise jwt.PyJWTError("Token has been revoked.")
@@ -85,5 +96,33 @@ def decode_access_token(token: str) -> Optional[str]:
         logger.warning("[AUTH] Attempted use of revoked JWT jti.")
         raise jwt.PyJWTError("Token has been revoked.")
 
+    # 2. Database persistent check if db session provided
+    if db is not None:
+        try:
+            token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+            from app.models.base import RevokedToken
+            revoked_in_db = db.query(RevokedToken).filter(
+                (RevokedToken.jti == jti) | (RevokedToken.token_hash == token_hash)
+            ).first() if (jti or token_hash) else None
+
+            if revoked_in_db:
+                if jti:
+                    token_blocklist.revoke(jti)
+                token_blocklist.revoke(token)
+                logger.warning("[AUTH] Attempted use of database-revoked JWT token.")
+                raise jwt.PyJWTError("Token has been revoked.")
+        except jwt.PyJWTError:
+            raise
+        except Exception as e:
+            logger.debug(f"[AUTH] Optional db revocation check skipped/failed: {e}")
+
+    return payload
+
+def decode_access_token(token: str, db: Optional[Any] = None) -> Optional[str]:
+    """
+    Decodes and validates the JWT. Returns the subject (email).
+    Maintains backward compatibility with all callers.
+    """
+    payload = decode_token_claims(token, db=db)
     subject: Optional[str] = payload.get("sub")
     return subject

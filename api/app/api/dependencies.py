@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 import jwt
 
 from app.core.database import get_db
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, decode_token_claims
 from app.models.base import User
 from app.core.logging import logger
 
@@ -24,7 +24,8 @@ def get_current_user(
     
     token = credentials.credentials
     try:
-        email = decode_access_token(token)
+        payload = decode_token_claims(token, db=db)
+        email = payload.get("sub")
         if not email:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,6 +47,20 @@ def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Serverless session invalidation check across all lambda instances
+    token_version = payload.get("token_version", 1)
+    user_version = getattr(user, "token_version", 1) or 1
+    if token_version < user_version:
+        logger.warning(
+            f"[AUTH] Inactive token version ({token_version} < {user_version}) for user {user.id}. Session invalidated."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been invalidated. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return user
 
 def get_optional_current_user(
@@ -55,9 +70,15 @@ def get_optional_current_user(
     if not credentials:
         return None
     try:
-        email = decode_access_token(credentials.credentials)
+        payload = decode_token_claims(credentials.credentials, db=db)
+        email = payload.get("sub")
         if email:
-            return db.query(User).filter(User.email == email).first()
+            user = db.query(User).filter(User.email == email).first()
+            if user:
+                token_version = payload.get("token_version", 1)
+                user_version = getattr(user, "token_version", 1) or 1
+                if token_version >= user_version:
+                    return user
     except Exception:
         pass
     return None

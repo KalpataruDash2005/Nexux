@@ -188,8 +188,13 @@ class CodeExecutionService:
     @classmethod
     def has_compiler_or_runtime(cls, language: str) -> bool:
         """
-        Checks whether the necessary interpreter/compiler is present on the current host.
+        Checks whether execution is available:
+        - If external isolated sandbox (JUDGE0_URL) is configured: True
+        - In production or Vercel: False (host execution strictly disallowed)
+        - In local dev environment with ENABLE_HOST_CODE_EXECUTION: checks host interpreters
         """
+        if settings.JUDGE0_URL:
+            return True
         if not settings.is_host_execution_permitted:
             return False
         lang = cls.normalize_language(language)
@@ -243,6 +248,69 @@ if __name__ == '__main__':
         return code
 
     @classmethod
+    def execute_in_isolated_sandbox(
+        cls,
+        language: str,
+        code: str,
+        input_data: str,
+        timeout: float = 3.0
+    ) -> Tuple[bool, str, str, str, float]:
+        """
+        Executes untrusted code in an external isolated compute sandbox (Judge0 / MicroVM).
+        Provides full process, network, and file system isolation outside the application host.
+        """
+        if not settings.JUDGE0_URL:
+            return False, "", "External isolated sandbox is not configured.", "Compilation Error", 0.0
+
+        lang = cls.normalize_language(language)
+        lang_ids = {"python": 71, "javascript": 63, "cpp": 54, "java": 62}
+        lang_id = lang_ids.get(lang, 71)
+
+        import urllib.request
+        import json
+        import base64
+
+        url = f"{settings.JUDGE0_URL.rstrip('/')}/submissions?wait=true&base64_encoded=true"
+        headers = {"Content-Type": "application/json"}
+        if settings.JUDGE0_API_KEY:
+            headers["X-Auth-Token"] = settings.JUDGE0_API_KEY
+            headers["x-rapidapi-key"] = settings.JUDGE0_API_KEY
+
+        payload = {
+            "source_code": base64.b64encode(code.encode("utf-8")).decode("utf-8"),
+            "language_id": lang_id,
+            "stdin": base64.b64encode(input_data.encode("utf-8")).decode("utf-8"),
+            "cpu_time_limit": min(timeout, 5.0),
+        }
+
+        try:
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers=headers,
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=timeout + 2.0) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                stdout = base64.b64decode(result.get("stdout") or "").decode("utf-8", errors="replace")
+                stderr = base64.b64decode(result.get("stderr") or "").decode("utf-8", errors="replace")
+                compile_output = base64.b64decode(result.get("compile_output") or "").decode("utf-8", errors="replace")
+                status_id = result.get("status", {}).get("id", 0)
+                time_s = float(result.get("time") or 0.0)
+
+                if status_id == 3:  # Accepted
+                    return True, stdout[:10000], "", "Success", time_s * 1000
+                elif status_id == 6:  # Compilation Error
+                    return False, stdout, compile_output or stderr, "Compilation Error", time_s * 1000
+                elif status_id == 5:  # Time Limit Exceeded
+                    return False, stdout, "Time Limit Exceeded", "Time Limit Exceeded", time_s * 1000
+                else:
+                    return False, stdout, stderr or "Runtime Error", "Runtime Error", time_s * 1000
+        except Exception as e:
+            logger.warning(f"[CODE-EXEC] External isolated sandbox request failed: {e}")
+            return False, "", f"External sandbox error: {str(e)}", "Runtime Error", 0.0
+
+    @classmethod
     def execute_in_sandbox(
         cls,
         language: str,
@@ -251,9 +319,31 @@ if __name__ == '__main__':
         timeout: float = 3.0
     ) -> Tuple[bool, str, str, str, float]:
         """
-        Executes code in a temporary directory sandbox with strict timeout and resource bounds.
-        Returns: (success, stdout, stderr, status, execution_time_ms)
-        status values: "Success", "Compilation Error", "Runtime Error", "Time Limit Exceeded"
+        Dispatches execution:
+        - If external isolated compute (JUDGE0_URL) is configured: routes to isolated sandbox.
+        - If dev environment with ENABLE_HOST_CODE_EXECUTION: routes to execute_subprocess_dev_only.
+        - In production / serverless: blocks execution strictly.
+        """
+        if settings.JUDGE0_URL:
+            return cls.execute_in_isolated_sandbox(language, code, input_data, timeout)
+
+        if settings.is_host_execution_permitted:
+            return cls.execute_subprocess_dev_only(language, code, input_data, timeout)
+
+        logger.warning("[SECURITY] Host code execution blocked by policy in this environment.")
+        return False, "", "Host code execution is disabled by policy in production. Isolated compute sandbox required.", "Compilation Error", 0.0
+
+    @classmethod
+    def execute_subprocess_dev_only(
+        cls,
+        language: str,
+        code: str,
+        input_data: str,
+        timeout: float = 3.0
+    ) -> Tuple[bool, str, str, str, float]:
+        """
+        Local development-only runner using sanitized environment and temporary directory.
+        SECURITY: Not an isolated container sandbox. Strictly disabled in production.
         """
         if not settings.is_host_execution_permitted:
             logger.warning("[SECURITY] Host code execution blocked by policy.")

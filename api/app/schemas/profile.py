@@ -12,6 +12,7 @@ class StudentProfileDto(BaseModel):
     graduationYear: Optional[int] = None
     skills: Optional[str] = None
     resumeUrl: Optional[str] = None
+    phone: Optional[str] = None
     createdAt: Optional[datetime] = None
     updatedAt: Optional[datetime] = None
 

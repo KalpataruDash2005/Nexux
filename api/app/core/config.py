@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     ENVIRONMENT: str = Field(default="development", description="Environment tier: development, staging, production")
     ENABLE_HOST_CODE_EXECUTION: bool = Field(default=False, description="Allow host subprocess execution (dev/test only)")
+    JUDGE0_URL: Optional[str] = Field(default=None, description="External isolated sandbox execution endpoint (Judge0)")
+    JUDGE0_API_KEY: Optional[str] = Field(default=None, description="External isolated sandbox API key")
 
     @property
     def is_host_execution_permitted(self) -> bool:
@@ -69,9 +71,12 @@ class Settings(BaseSettings):
     CACHE_MAX_ENTRIES: int = 200
     CACHE_DEFAULT_TTL_SECONDS: int = 3600
 
-    # Rate Limiting
+    # Rate Limiting & Distributed Edge Throttling
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = 60
+    UPSTASH_REDIS_REST_URL: Optional[str] = None
+    UPSTASH_REDIS_REST_TOKEN: Optional[str] = None
+    REDIS_URL: Optional[str] = None
     
     # Authentication & JWT
     JWT_SECRET: str = Field(

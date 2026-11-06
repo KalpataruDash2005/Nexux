@@ -7,4 +7,5 @@ export interface StudentProfileDto {
   graduationYear?: number;
   skills?: string;
   resumeUrl?: string;
+  phone?: string;
 }

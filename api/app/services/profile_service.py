@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app.repositories.user_repository import StudentProfileRepository, UserRepository
 from app.models.base import StudentProfile, User
 from app.schemas.profile import StudentProfileDto
+from app.core.crypto import encrypt_field, decrypt_field
+from app.core.logging import logger
 
 class ProfileService:
     def __init__(self, db: Session):
@@ -23,8 +25,18 @@ class ProfileService:
                 degree="",
                 graduationYear=None,
                 skills="",
-                resumeUrl=""
+                resumeUrl="",
+                phone=""
             )
+
+        phone_val = None
+        if profile.phone:
+            try:
+                phone_val = decrypt_field(profile.phone)
+            except Exception as e:
+                logger.debug(f"[PROFILE] Failed to decrypt phone field, returning legacy fallback: {e}")
+                phone_val = profile.phone
+
         return StudentProfileDto(
             id=profile.id,
             userId=profile.user_id,
@@ -35,6 +47,7 @@ class ProfileService:
             graduationYear=profile.graduation_year,
             skills=profile.skills,
             resumeUrl=profile.resume_url,
+            phone=phone_val,
             createdAt=profile.created_at,
             updatedAt=profile.updated_at
         )
@@ -58,8 +71,19 @@ class ProfileService:
             profile.skills = data.skills
         if data.resumeUrl is not None:
             profile.resume_url = data.resumeUrl
+        if data.phone is not None:
+            clean_phone = data.phone.strip()
+            profile.phone = encrypt_field(clean_phone) if clean_phone else None
 
         saved = self.profile_repo.create_or_update(profile)
+
+        phone_display = None
+        if saved.phone:
+            try:
+                phone_display = decrypt_field(saved.phone)
+            except Exception:
+                phone_display = saved.phone
+
         return StudentProfileDto(
             id=saved.id,
             userId=saved.user_id,
@@ -70,6 +94,7 @@ class ProfileService:
             graduationYear=saved.graduation_year,
             skills=saved.skills,
             resumeUrl=saved.resume_url,
+            phone=phone_display,
             createdAt=saved.created_at,
             updatedAt=saved.updated_at
         )
