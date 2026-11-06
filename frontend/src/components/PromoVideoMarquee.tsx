@@ -16,7 +16,7 @@ const PromoVideoMarquee: React.FC = () => {
     <section className="promo-marquee reveal">
       <div className="wrap">
         <div className="section-head">
-          <span className="eyebrow">Featured</span>
+          <span className="eyebrow" style={{ justifyContent: 'center' }}>Featured</span>
           <h2>See Nexora in motion</h2>
           <p>A closer look at how the system works end to end.</p>
         </div>
