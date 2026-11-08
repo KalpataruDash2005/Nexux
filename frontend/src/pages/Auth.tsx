@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { Mail, Lock, ArrowRight, User, Loader2 } from 'lucide-react';
 import { login as apiLogin, register } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 
@@ -44,13 +44,13 @@ const Auth: React.FC = () => {
             if (isLogin) {
                 const response = await apiLogin({ email, password });
                 login(response.token, { email, role: response.role || 'STUDENT', name: response.name });
-                navigate(response.role?.toUpperCase() === 'ADMIN' ? '/admin-dashboard' : '/dashboard');
+                const target = response.role?.toUpperCase() === 'ADMIN' ? '/admin-dashboard' : '/dashboard';
+                navigate(target, { replace: true });
             } else {
-                await register({ email, password, role: 'STUDENT', name });
-                // Automatically log them in after registration
-                const loginRes = await apiLogin({ email, password });
-                login(loginRes.token, { email, role: 'STUDENT', name: loginRes.name || name });
-                navigate('/onboarding');
+                const registerRes = await register({ email, password, role: 'STUDENT', name });
+                // Immediate authentication from register response - no duplicate login round-trip
+                login(registerRes.token, { email, role: registerRes.role || 'STUDENT', name: registerRes.name || name });
+                navigate('/dashboard', { replace: true });
             }
         } catch (err: any) {
             setError(getErrorMessage(err));
@@ -103,9 +103,10 @@ const Auth: React.FC = () => {
                             <label className="block text-xs font-medium text-muted mb-1.5 uppercase tracking-wider">Email Address</label>
                             <div className="relative">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-white border border-border rounded-xl pl-11 pr-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors" placeholder="student@university.edu" />
+                                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-white border border-border rounded-xl pl-11 pr-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-colors" placeholder="you@example.com" />
                             </div>
                         </div>
+
                         <div>
                             <label className="block text-xs font-medium text-muted mb-1.5 uppercase tracking-wider">Password</label>
                             <div className="relative">
@@ -115,7 +116,17 @@ const Auth: React.FC = () => {
                         </div>
 
                         <button type="submit" disabled={loading} className="w-full mt-2 bg-primary hover:bg-primary-hover shadow-[0_12px_30px_-8px_rgba(68,76,231,0.6)] disabled:opacity-50 transition-all text-white font-medium rounded-xl py-3 flex items-center justify-center gap-2">
-                            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Continue')} {!loading && <ArrowRight className="w-4 h-4" />}
+                            {loading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    {isLogin ? 'Signing in...' : 'Creating account...'}
+                                </>
+                            ) : (
+                                <>
+                                    {isLogin ? 'Sign In' : 'Continue'}
+                                    <ArrowRight className="w-4 h-4" />
+                                </>
+                            )}
                         </button>
                     </form>
 

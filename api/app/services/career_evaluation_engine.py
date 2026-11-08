@@ -393,13 +393,15 @@ class CareerEvaluationEngine:
         user: Any,
         sessions: List[Any],
         latest_resume: Optional[Any],
-        resume_analysis: Optional[Dict[str, Any]]
+        resume_analysis: Optional[Dict[str, Any]],
+        analytics: Optional[AnalyticsData] = None
     ) -> ReadinessData:
         """
         Builds the 4-component weighted readiness model grounded in real assessments.
         If a dimension is unassessed, it is explicitly marked isAssessed=False.
         """
-        analytics = CareerEvaluationEngine.compute_grounded_analytics(sessions, latest_resume, resume_analysis)
+        if analytics is None:
+            analytics = CareerEvaluationEngine.compute_grounded_analytics(sessions, latest_resume, resume_analysis)
 
         # Dimension breakdown
         dsa_assessed = analytics.coding > 0 or analytics.dsa > 0

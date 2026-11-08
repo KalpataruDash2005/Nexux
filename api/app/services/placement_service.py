@@ -293,7 +293,7 @@ class PlacementService:
         sessions = self.repo.get_sessions(user.id)
         latest_resume, resume_analysis = self._get_user_resume_analysis(user.id)
         analytics = CareerEvaluationEngine.compute_grounded_analytics(sessions, latest_resume, resume_analysis)
-        readiness_data = CareerEvaluationEngine.compute_grounded_readiness(user, sessions, latest_resume, resume_analysis)
+        readiness_data = CareerEvaluationEngine.compute_grounded_readiness(user, sessions, latest_resume, resume_analysis, analytics=analytics)
 
         completed_interviews = sum(1 for s in sessions if getattr(s, "type", None) in ("MOCK", "HR", "TECHNICAL") and getattr(s, "status", None) == "COMPLETED")
         coding_problems = sum(1 for s in sessions if getattr(s, "type", None) == "CODING" and getattr(s, "status", None) == "COMPLETED")

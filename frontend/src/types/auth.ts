@@ -16,6 +16,7 @@ export interface AuthResponseDto {
   email: string;
   role: string;
   name?: string;
+  message?: string;
 }
 
 export interface LogoutResponseDto {

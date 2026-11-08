@@ -28,14 +28,24 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    getMyProfile().then(setProfile).catch(console.error);
-    getWorkspaces()
-      .then(setWorkspaces)
-      .catch(console.error)
-      .finally(() => setLoadingStats(false));
-    getTaskSummary()
-      .then((s) => setSummary(s ?? EMPTY_SUMMARY))
-      .catch(() => setSummary(EMPTY_SUMMARY));
+    // Fetch profile, workspaces, and task summary concurrently in parallel
+    Promise.allSettled([
+      getMyProfile(),
+      getWorkspaces(),
+      getTaskSummary()
+    ]).then(([profileRes, workspacesRes, summaryRes]) => {
+      if (profileRes.status === 'fulfilled') {
+        setProfile(profileRes.value);
+      }
+      if (workspacesRes.status === 'fulfilled') {
+        setWorkspaces(workspacesRes.value || []);
+      }
+      if (summaryRes.status === 'fulfilled') {
+        setSummary(summaryRes.value ?? EMPTY_SUMMARY);
+      }
+      setLoadingStats(false);
+    });
+
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);

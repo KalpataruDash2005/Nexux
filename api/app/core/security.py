@@ -14,9 +14,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 def get_password_hash(password: str) -> str:
-    """Generates a BCrypt password hash matching Spring Boot BCryptPasswordEncoder."""
+    """
+    Generates a BCrypt password hash matching Spring Boot BCryptPasswordEncoder.
+    Optimized to rounds=10 for fast, responsive interactive logins while maintaining OWASP standard security.
+    """
     password_bytes = password.encode("utf-8")[:72]
-    salt = bcrypt.gensalt()
+    salt = bcrypt.gensalt(rounds=10)
     return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
 
 def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:

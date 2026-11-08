@@ -21,9 +21,7 @@ const Register: React.FC = () => {
     try {
       await register({ email, password, role });
       setSuccessMessage('Registration successful! Redirecting to login...');
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+      navigate('/auth?mode=login', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data || 'Registration failed.');
     } finally {
@@ -103,7 +101,7 @@ const Register: React.FC = () => {
 
           <p className="mt-8 text-center text-sm text-gray-400">
             Already have an account?{' '}
-            <Link to="/login" className="text-blue-500 hover:text-blue-400 font-medium transition-colors">
+            <Link to="/auth?mode=login" className="text-blue-500 hover:text-blue-400 font-medium transition-colors">
               Sign in
             </Link>
           </p>

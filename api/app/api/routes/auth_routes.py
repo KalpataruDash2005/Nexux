@@ -10,7 +10,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.post(
     "/register",
     status_code=status.HTTP_200_OK,
-    response_model=str,
+    response_model=AuthResponseDto,
     dependencies=[Depends(rate_limit(max_requests=20, window_seconds=60))]
 )
 def register(request: RegisterRequestDto, db: Session = Depends(get_db)):

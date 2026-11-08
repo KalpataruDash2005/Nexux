@@ -12,7 +12,7 @@ class AuthService:
         self.user_repo = UserRepository(db)
         self.profile_repo = StudentProfileRepository(db)
 
-    def register_user(self, request: RegisterRequestDto) -> str:
+    def register_user(self, request: RegisterRequestDto) -> AuthResponseDto:
         clean_email = request.email.lower().strip()
         if self.user_repo.exists_by_email(clean_email):
             raise HTTPException(
@@ -35,6 +35,7 @@ class AuthService:
         saved_user = self.user_repo.create(user)
 
         # If name is provided and role is STUDENT, populate StudentProfile
+        resolved_name = None
         if request.name and request.name.strip() and requested_role == "STUDENT":
             full_name = request.name.strip()
             first_name = full_name
@@ -50,12 +51,22 @@ class AuthService:
                 last_name=last_name
             )
             self.profile_repo.create_or_update(profile)
+            resolved_name = full_name
 
-        return "User registered successfully"
+        token = create_access_token(subject=saved_user.email)
+
+        return AuthResponseDto(
+            token=token,
+            type="Bearer",
+            email=saved_user.email,
+            role=saved_user.role,
+            name=resolved_name,
+            message="User registered successfully"
+        )
 
     def authenticate_user(self, request: AuthRequestDto) -> AuthResponseDto:
         clean_email = request.email.lower().strip()
-        user = self.user_repo.get_by_email(clean_email)
+        user = self.user_repo.get_by_email_with_profile(clean_email)
         if not user or not verify_password(request.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -65,15 +76,12 @@ class AuthService:
 
         token = create_access_token(subject=user.email)
 
-        # Resolve student name if student
+        # Resolve student name if student from eagerly loaded profile
         name = None
-        if user.role == "STUDENT":
-            profile = self.profile_repo.get_by_user_id(user.id)
-            if profile and profile.first_name:
-                if profile.last_name:
-                    name = f"{profile.first_name} {profile.last_name}"
-                else:
-                    name = profile.first_name
+        if user.role == "STUDENT" and user.profile:
+            p = user.profile
+            if p.first_name:
+                name = f"{p.first_name} {p.last_name}".strip() if p.last_name else p.first_name
 
         return AuthResponseDto(
             token=token,

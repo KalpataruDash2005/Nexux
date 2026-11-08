@@ -17,3 +17,4 @@ class AuthResponseDto(BaseModel):
     email: str
     role: str
     name: Optional[str] = None
+    message: Optional[str] = None

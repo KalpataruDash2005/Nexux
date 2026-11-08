@@ -1,5 +1,5 @@
 from typing import Optional, List
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.base import User, StudentProfile
 
 class UserRepository:
@@ -9,11 +9,19 @@ class UserRepository:
     def get_by_email(self, email: str) -> Optional[User]:
         return self.db.query(User).filter(User.email == email.lower().strip()).first()
 
+    def get_by_email_with_profile(self, email: str) -> Optional[User]:
+        return (
+            self.db.query(User)
+            .options(joinedload(User.profile))
+            .filter(User.email == email.lower().strip())
+            .first()
+        )
+
     def get_by_id(self, user_id: str) -> Optional[User]:
         return self.db.query(User).filter(User.id == user_id).first()
 
     def exists_by_email(self, email: str) -> bool:
-        return self.db.query(User).filter(User.email == email.lower().strip()).count() > 0
+        return self.db.query(User.id).filter(User.email == email.lower().strip()).first() is not None
 
     def create(self, user: User) -> User:
         user.email = user.email.lower().strip()

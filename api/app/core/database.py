@@ -57,21 +57,18 @@ def get_engine():
         )
     else:
         # PostgreSQL / Supabase
-        connect_args = {"sslmode": "require"}
-        if os.getenv("VERCEL") == "1" or ":6543" in db_url:
-            return create_engine(
-                db_url,
-                poolclass=NullPool,
-                connect_args=connect_args,
-                pool_pre_ping=True
-            )
+        connect_args = {"sslmode": "require", "connect_timeout": 10}
+        # In serverless environments, warm execution containers handle consecutive requests.
+        # QueuePool with sensible limits reuses warm TCP/TLS sockets avoiding hundreds of ms
+        # of connection handshake overhead per query.
         return create_engine(
             db_url,
             connect_args=connect_args,
             pool_pre_ping=settings.DB_POOL_PRE_PING,
-            pool_size=settings.DB_POOL_SIZE,
-            max_overflow=settings.DB_MAX_OVERFLOW,
-            pool_recycle=settings.DB_POOL_RECYCLE
+            pool_size=settings.DB_POOL_SIZE or 5,
+            max_overflow=settings.DB_MAX_OVERFLOW or 5,
+            pool_timeout=15,
+            pool_recycle=settings.DB_POOL_RECYCLE or 300
         )
 
 engine = get_engine()
