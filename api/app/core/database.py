@@ -1,6 +1,5 @@
 import os
 from typing import Generator
-import pymysql
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool, QueuePool
@@ -8,10 +7,10 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.models.base import Base
 
-# Ensure pymysql registers as MySQLdb for compatibility with any mysql:// connection string
 try:
+    import pymysql
     pymysql.install_as_MySQLdb()
-except Exception:
+except ImportError:
     pass
 
 def get_engine():

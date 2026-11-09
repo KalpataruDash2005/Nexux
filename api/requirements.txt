@@ -10,6 +10,7 @@ PyJWT>=2.8.0
 passlib[bcrypt]>=1.7.4
 bcrypt>=4.0.1
 SQLAlchemy>=2.0.28
+pymysql>=1.1.0
 cryptography>=42.0.0
 psycopg2-binary>=2.9.9
 pypdf>=4.2.0
