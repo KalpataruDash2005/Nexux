@@ -28,26 +28,28 @@ const TopNav: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadPending = async () => {
+  const loadPending = async (loadFullList = false) => {
     try {
       const s = await getTaskSummary();
       setSummary(s ?? { total: 0, completed: 0, pending: 0, overdue: 0 });
     } catch {
       /* ignore */
     }
-    try {
-      const tasks = await getTasks();
-      setTaskList(tasks);
-    } catch {
-      /* ignore */
+    if (loadFullList) {
+      try {
+        const tasks = await getTasks();
+        setTaskList(tasks);
+      } catch {
+        /* ignore */
+      }
     }
   };
 
   useEffect(() => {
-    loadPending();
-    const timer = setInterval(loadPending, 60000);
+    loadPending(false);
+    const timer = setInterval(() => loadPending(bellOpen), 60000);
     return () => clearInterval(timer);
-  }, []);
+  }, [bellOpen]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -61,7 +63,7 @@ const TopNav: React.FC = () => {
 
   const overdueTasks = taskList.filter((t) => t.status === 'PENDING' && t.deadline && new Date(t.deadline) < new Date());
   const pendingTasks = taskList.filter((t) => t.status === 'PENDING' && t.deadline && new Date(t.deadline) >= new Date());
-  const attention = overdueTasks.length + pendingTasks.length;
+  const attention = (summary.overdue + summary.pending) || (overdueTasks.length + pendingTasks.length);
 
   const handleSendReminder = async () => {
     setBellSending(true);
@@ -315,8 +317,9 @@ const TopNav: React.FC = () => {
         <div className="relative" ref={bellRef}>
           <button
             onClick={() => {
-              setBellOpen((o) => !o);
-              if (!bellOpen) loadPending();
+              const next = !bellOpen;
+              setBellOpen(next);
+              if (next) loadPending(true);
             }}
             className="relative p-2 text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
             aria-label="Notifications"
