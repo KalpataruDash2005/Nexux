@@ -7,6 +7,7 @@ import jwt
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.base import User
+from app.core.cache import cache_manager
 from app.core.logging import logger
 
 security = HTTPBearer(auto_error=False)
@@ -39,6 +40,18 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # 1. Fast path: check in-memory cache for sub-millisecond resolution
+    cache_key = f"user_cache:{email}"
+    cached_user = cache_manager.get(cache_key)
+    if cached_user:
+        return User(
+            id=cached_user["id"],
+            email=cached_user["email"],
+            role=cached_user["role"],
+            password_hash=cached_user.get("password_hash", "")
+        )
+
+    # 2. Database query on cache miss
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(
@@ -46,6 +59,17 @@ def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    cache_manager.set(
+        cache_key,
+        {
+            "id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "password_hash": user.password_hash
+        },
+        ttl_seconds=300
+    )
     return user
 
 def get_optional_current_user(
@@ -57,7 +81,28 @@ def get_optional_current_user(
     try:
         email = decode_access_token(credentials.credentials)
         if email:
-            return db.query(User).filter(User.email == email).first()
+            cache_key = f"user_cache:{email}"
+            cached_user = cache_manager.get(cache_key)
+            if cached_user:
+                return User(
+                    id=cached_user["id"],
+                    email=cached_user["email"],
+                    role=cached_user["role"],
+                    password_hash=cached_user.get("password_hash", "")
+                )
+            user = db.query(User).filter(User.email == email).first()
+            if user:
+                cache_manager.set(
+                    cache_key,
+                    {
+                        "id": user.id,
+                        "email": user.email,
+                        "role": user.role,
+                        "password_hash": user.password_hash
+                    },
+                    ttl_seconds=300
+                )
+                return user
     except Exception:
         pass
     return None

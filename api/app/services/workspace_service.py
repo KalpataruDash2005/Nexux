@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.repositories.workspace_repository import WorkspaceRepository
 from app.models.base import Workspace, User
+from app.core.cache import cache_manager
 from app.schemas.workspace import (
     CreateWorkspaceRequestDto,
     RenameWorkspaceRequestDto,
@@ -23,6 +24,7 @@ class WorkspaceService:
             status="ACTIVE"
         )
         saved = self.repo.create(workspace)
+        cache_manager.delete(f'workspaces:user:{user.id}')
         return WorkspaceResponseDto(
             id=saved.id,
             studentId=saved.owner_id,
@@ -35,8 +37,16 @@ class WorkspaceService:
         )
 
     def get_workspaces(self, user: User) -> List[WorkspaceResponseDto]:
+        cache_key = f"workspaces:user:{user.id}"
+        cached = cache_manager.get(cache_key)
+        if cached is not None:
+            try:
+                return [WorkspaceResponseDto.model_validate(w) for w in cached]
+            except Exception:
+                pass
+
         workspace_tuples = self.repo.get_all_by_owner_with_doc_counts(user.id)
-        return [
+        res = [
             WorkspaceResponseDto(
                 id=w.id,
                 studentId=w.owner_id,
@@ -49,6 +59,8 @@ class WorkspaceService:
             )
             for w, doc_count in workspace_tuples
         ]
+        cache_manager.set(cache_key, [w.model_dump() for w in res], ttl_seconds=60)
+        return res
 
     def get_workspace(self, workspace_id: str, user: User) -> WorkspaceResponseDto:
         w = self.repo.get_by_id_and_owner(workspace_id, user.id)

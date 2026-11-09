@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.encoders import jsonable_encoder
@@ -33,8 +34,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME}...")
     init_db()
 
-    # Seed Admin User if configured
-    if settings.CAREEROS_ADMIN_EMAIL:
+    # Seed Admin User only in non-serverless local environments to keep Vercel startup instantaneous
+    if settings.CAREEROS_ADMIN_EMAIL and os.getenv("VERCEL") != "1":
         db = SessionLocal()
         try:
             admin_email = settings.CAREEROS_ADMIN_EMAIL.lower().strip()

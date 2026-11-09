@@ -23,6 +23,7 @@ from app.schemas.tasks import (
 )
 from app.ai import ai_gateway, AIWorkload, AITask
 from app.core.logging import logger
+from app.core.cache import cache_manager
 
 class TaskService:
     def __init__(self, db: Session):
@@ -37,6 +38,7 @@ class TaskService:
             status="PENDING"
         )
         saved = self.repo.create(task)
+        cache_manager.delete(f'tasks:summary:{user.id}')
         return TaskDto.model_validate(saved)
 
     def get_tasks(self, user: User, status_filter: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[TaskDto]:
@@ -72,6 +74,7 @@ class TaskService:
 
         task.last_activity = datetime.utcnow()
         saved = self.repo.update(task)
+        cache_manager.delete(f'tasks:summary:{user.id}')
         return TaskDto.model_validate(saved)
 
     def delete_task(self, task_id: str, user: User):
@@ -79,10 +82,20 @@ class TaskService:
         if not task:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
         self.repo.delete(task)
+        cache_manager.delete(f'tasks:summary:{user.id}')
 
     def get_summary(self, user: User) -> TaskSummaryResponse:
+        cache_key = f"tasks:summary:{user.id}"
+        cached = cache_manager.get(cache_key)
+        if cached is not None:
+            try:
+                return TaskSummaryResponse.model_validate(cached)
+            except Exception:
+                pass
         summary = self.repo.get_summary(user.id)
-        return TaskSummaryResponse(**summary)
+        res = TaskSummaryResponse(**summary)
+        cache_manager.set(cache_key, res.model_dump(), ttl_seconds=60)
+        return res
 
     async def generate_ai_plan(self, user: User) -> AiPlanResponse:
         tasks = self.repo.get_all_by_user(user.id)

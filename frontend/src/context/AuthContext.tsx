@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { logout as apiLogout } from '../services/authService';
+import { clearApiCache } from '../services/apiClient';
 
 interface AuthContextType {
     token: string | null;
-    user: any | null; // using any for simplicity, can type properly later
+    user: any | null;
     login: (token: string, user: any) => void;
     logout: () => void;
     isAuthenticated: boolean;
@@ -22,6 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const location = useLocation();
 
     const login = (newToken: string, newUser: any) => {
+        clearApiCache();
         setToken(newToken);
         setUser(newUser);
         localStorage.setItem('token', newToken);
@@ -29,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = () => {
+        clearApiCache();
         // Asynchronously notify backend to invalidate token blocklist
         apiLogout().catch(() => {});
         setToken(null);

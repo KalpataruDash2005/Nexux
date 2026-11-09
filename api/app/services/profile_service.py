@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.repositories.user_repository import StudentProfileRepository, UserRepository
 from app.models.base import StudentProfile, User
 from app.schemas.profile import StudentProfileDto
+from app.core.cache import cache_manager
 
 class ProfileService:
     def __init__(self, db: Session):
@@ -11,6 +12,13 @@ class ProfileService:
         self.user_repo = UserRepository(db)
 
     def get_profile(self, user: User) -> StudentProfileDto:
+        cache_key = f"student:profile:{user.id}"
+        cached = cache_manager.get(cache_key)
+        if cached is not None:
+            try:
+                return StudentProfileDto.model_validate(cached)
+            except Exception:
+                pass
         profile = self.profile_repo.get_by_user_id(user.id)
         if not profile:
             # Return empty skeleton
@@ -25,7 +33,7 @@ class ProfileService:
                 skills="",
                 resumeUrl=""
             )
-        return StudentProfileDto(
+        res = StudentProfileDto(
             id=profile.id,
             userId=profile.user_id,
             firstName=profile.first_name,
@@ -38,6 +46,8 @@ class ProfileService:
             createdAt=profile.created_at,
             updatedAt=profile.updated_at
         )
+        cache_manager.set(cache_key, res.model_dump(), ttl_seconds=300)
+        return res
 
     def update_profile(self, user: User, data: StudentProfileDto) -> StudentProfileDto:
         profile = self.profile_repo.get_by_user_id(user.id)
@@ -60,6 +70,8 @@ class ProfileService:
             profile.resume_url = data.resumeUrl
 
         saved = self.profile_repo.create_or_update(profile)
+        cache_manager.delete(f"student:profile:{user.id}")
+        cache_manager.delete(f"user_cache:{user.email}")
         return StudentProfileDto(
             id=saved.id,
             userId=saved.user_id,

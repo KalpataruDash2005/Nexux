@@ -63,6 +63,7 @@ from app.services.code_execution_service import CodeExecutionService
 from app.services.career_evaluation_engine import CareerEvaluationEngine
 from app.schemas.ai_response import create_standard_response
 from app.core.logging import logger
+from app.core.cache import cache_manager
 
 def is_gibberish_or_random(text: str) -> bool:
     cleaned = (text or "").strip()
@@ -290,6 +291,14 @@ class PlacementService:
             return latest, None
 
     def get_dashboard(self, user: User) -> DashboardData:
+        cache_key = f"placement:dashboard:{user.id}"
+        cached = cache_manager.get(cache_key)
+        if cached is not None:
+            try:
+                return DashboardData.model_validate(cached)
+            except Exception:
+                pass
+
         sessions = self.repo.get_sessions(user.id)
         latest_resume, resume_analysis = self._get_user_resume_analysis(user.id)
         analytics = CareerEvaluationEngine.compute_grounded_analytics(sessions, latest_resume, resume_analysis)
@@ -333,7 +342,7 @@ class PlacementService:
                 score_factor = max(0, readiness_data.score - 5)
             weekly_progress.append(WeeklyProgressItem(day=day_name, score=score_factor))
 
-        return DashboardData(
+        dashboard_obj = DashboardData(
             readiness=readiness_data.score,
             readinessLabel=readiness_data.label,
             streak=min(14, len(sessions) + 1),
@@ -351,6 +360,8 @@ class PlacementService:
             weeklyProgress=weekly_progress,
             recentFeedback=recent_feedback
         )
+        cache_manager.set(cache_key, dashboard_obj.model_dump(), ttl_seconds=60)
+        return dashboard_obj
 
     def create_session(self, user: User, body: CreateSessionBody) -> PlacementSessionDto:
         clean_mode = (body.mode or "AI").upper()

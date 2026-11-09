@@ -9,6 +9,7 @@ from app.main import app
 from app.core.database import get_db
 from app.models.base import Base, User
 from app.core.security import get_password_hash, create_access_token
+from app.core.cache import cache_manager
 
 # Test database: In-memory SQLite with single connection pool
 TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -38,6 +39,7 @@ def isolate_ai_environment(monkeypatch):
 
 @pytest.fixture
 def db_session() -> Generator[Session, None, None]:
+    cache_manager.clear()
     connection = engine.connect()
     transaction = connection.begin()
     session = TestingSessionLocal(bind=connection)
@@ -47,6 +49,7 @@ def db_session() -> Generator[Session, None, None]:
     session.close()
     transaction.rollback()
     connection.close()
+    cache_manager.clear()
 
 @pytest.fixture
 def client(db_session: Session) -> Generator[TestClient, None, None]:
